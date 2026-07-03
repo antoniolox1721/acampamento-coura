@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   Paredes de Coura — Acampamento 2026
+   Paredes de Coura · Acampamento 2026
    Dados partilhados num "bucket" kvdb.io (sem contas, sem servidor),
    com backup automático para o repositório via GitHub Actions.
    Alternativa: Firebase (ver config.js). Sem ligação → modo local.
@@ -23,12 +23,13 @@ const CATALOGO = [
   { id: "lixo",       nome: "Rolo de sacos do lixo",         por: 10, nota: "não deixamos rasto" },
   { id: "papel",      nome: "Papel de cozinha e higiénico",  por: 7,  nota: "nunca é demais" },
   { id: "toldo",      nome: "Toldo ou oleado",               por: 10, nota: "sombra de dia, abrigo à noite" },
+  { id: "mesa",       nome: "Mesa e cadeiras de campismo",   por: 5,  nota: "um conjunto por grupo de cinco" },
   { id: "extensao",   nome: "Powerbank grande ou extensão",  por: 5,  nota: "para ninguém ficar sem bateria" },
 ];
 
 // ───────────── Essenciais individuais (checklist local) ─────────────
 const ESSENCIAIS = [
-  ["tenda",     "Tenda — combina a partilha"],
+  ["tenda",     "Tenda (combina a partilha)"],
   ["saco",      "Saco-cama"],
   ["colchao",   "Colchonete ou colchão insuflável"],
   ["frontal",   "Lanterna frontal"],
@@ -38,7 +39,7 @@ const ESSENCIAIS = [
   ["toalha",    "Toalha"],
   ["chinelos",  "Chinelos"],
   ["agasalho",  "Agasalho para a noite"],
-  ["chuva",     "Capa de chuva — é o Minho"],
+  ["chuva",     "Capa de chuva (é o Minho)"],
   ["loica",     "Prato, copo e talheres reutilizáveis"],
   ["cantil",    "Cantil ou garrafa de água"],
   ["powerbank", "Powerbank pessoal"],
@@ -48,7 +49,20 @@ const ESSENCIAIS = [
 
 // ───────────── Camada de dados ─────────────
 const CFG = window.CONFIG || {};
-const DOC_VAZIO = () => ({ pessoas: {}, material: {}, previsao: 20 });
+const DOC_VAZIO = () => ({ pessoas: {}, material: {}, votos: {}, previsao: 20 });
+
+// dias em votação para a partida
+const DIAS_PARTIDA = [
+  { dia: 7, semana: "Sexta" },
+  { dia: 8, semana: "Sábado" },
+  { dia: 9, semana: "Domingo" },
+];
+
+// chave segura para usar o nome como identificador: hex dos bytes UTF-8,
+// válida em qualquer backend (o Firebase não aceita ".#$[]/" nem percent-encoding)
+const chaveNome = (nome) =>
+  Array.from(new TextEncoder().encode(nome.toLowerCase().trim()))
+    .map((b) => b.toString(16).padStart(2, "0")).join("");
 let modo = CFG.firebaseUrl ? "firebase" : CFG.kvdbBucket ? "kvdb" : "local";
 
 const KV_URL = CFG.kvdbBucket ? `https://kvdb.io/${CFG.kvdbBucket}/dados` : "";
@@ -66,7 +80,7 @@ const api = {
       if (!r.ok) throw new Error("leitura falhou");
       return (await r.json()) || DOC_VAZIO();
     }
-    const r = await fetch(KV_URL);
+    const r = await fetch(KV_URL, { cache: "no-store" });
     if (r.status === 404) return DOC_VAZIO(); // ainda ninguém escreveu
     if (!r.ok) throw new Error("leitura falhou");
     return JSON.parse(await r.text());
@@ -78,13 +92,15 @@ const api = {
     const doc = await this.ler();
     doc.pessoas = doc.pessoas || {};
     doc.material = doc.material || {};
+    doc.votos = doc.votos || {};
     doc.previsao = doc.previsao || 20;
     alterar(doc);
     if (modo === "local") {
       localStorage.setItem(CHAVE_LOCAL, JSON.stringify(doc));
       return;
     }
-    const r = await fetch(KV_URL, { method: "PUT", body: JSON.stringify(doc) });
+    // POST em vez de PUT: pedido "simples" para o browser, sem preflight CORS
+    const r = await fetch(KV_URL, { method: "POST", body: JSON.stringify(doc) });
     if (!r.ok) throw new Error("gravação falhou");
   },
 
@@ -113,6 +129,40 @@ const api = {
     }
     await this._mutar((doc) => { doc.previsao = n; });
   },
+
+  // voto único por pessoa; dia = null anula o voto
+  async votar(nome, dia) {
+    const chave = chaveNome(nome);
+    if (modo === "firebase") {
+      const r = await fetch(`${FB_URL}/dados/votos/${chave}.json`, dia === null
+        ? { method: "DELETE" }
+        : { method: "PUT", body: JSON.stringify({ nome, dia, t: Date.now() }) });
+      if (!r.ok) throw new Error("voto falhou");
+      return;
+    }
+    await this._mutar((doc) => {
+      if (dia === null) delete doc.votos[chave];
+      else doc.votos[chave] = { nome, dia, t: Date.now() };
+    });
+  },
+
+  // remover uma pessoa arrasta o voto e as reclamações de material dela
+  async removerPessoa(id, nome) {
+    if (modo === "firebase") {
+      await this.remover("pessoas", id);
+      await fetch(`${FB_URL}/dados/votos/${chaveNome(nome)}.json`, { method: "DELETE" });
+      const meus = Object.entries(estado.material).filter(([, c]) => c.nome === nome);
+      for (const [mid] of meus) await this.remover("material", mid);
+      return;
+    }
+    await this._mutar((doc) => {
+      delete doc.pessoas[id];
+      delete doc.votos[chaveNome(nome)];
+      for (const [mid, c] of Object.entries(doc.material)) {
+        if (c.nome === nome) delete doc.material[mid];
+      }
+    });
+  },
 };
 
 // ───────────── Estado ─────────────
@@ -134,12 +184,35 @@ function ativarModoLocal() {
   $("#aviso-local").hidden = false;
 }
 
+// gravação falhada: avisa e mostra a faixa, para ninguém perder dados sem saber
+function falhaGravacao(msg) {
+  avisar(msg);
+  const faixa = $("#aviso-local");
+  faixa.textContent = "Há problemas a gravar na base partilhada: as tuas alterações podem não estar a ficar guardadas.";
+  faixa.hidden = false;
+}
+
+// o bucket é público e escrevível por qualquer pessoa: ao ler, ignora
+// entradas malformadas para que dados estranhos nunca partam a interface
+function sanear(ramo, valido) {
+  const limpo = {};
+  for (const [id, v] of Object.entries(ramo || {})) {
+    if (v && typeof v === "object" && valido(v)) limpo[id] = v;
+  }
+  return limpo;
+}
+
 async function sincronizar() {
   try {
     const doc = await api.ler();
-    estado.pessoas = doc.pessoas || {};
-    estado.material = doc.material || {};
-    estado.previsao = doc.previsao || 20;
+    estado.pessoas = sanear(doc.pessoas, (p) => typeof p.nome === "string" && p.nome.trim());
+    estado.material = sanear(doc.material, (c) => typeof c.nome === "string" && typeof c.item === "string");
+    estado.votos = sanear(doc.votos, (v) => typeof v.nome === "string" && DIAS_PARTIDA.some((o) => o.dia === v.dia));
+    if (mudarPrevisao._pendente) {
+      // há uma alteração local da previsão a caminho; não a deixes reverter
+      doc.previsao = estado.previsao;
+    }
+    estado.previsao = Math.max(1, Math.min(60, parseInt(doc.previsao, 10) || 20));
     const assinatura = JSON.stringify(estado);
     if (assinatura !== assinaturaEstado) {
       assinaturaEstado = assinatura;
@@ -149,7 +222,7 @@ async function sincronizar() {
     console.error(e);
     if (modo !== "local") {
       ativarModoLocal();
-      avisar("Sem ligação à base partilhada — modo local ativado.");
+      avisar("Sem ligação à base partilhada: modo local ativado.");
       sincronizar();
     }
   }
@@ -158,6 +231,7 @@ async function sincronizar() {
 // ───────────── Desenho ─────────────
 function desenharTudo() {
   desenharPessoas();
+  desenharVotos();
   desenharMaterial();
   desenharExtras();
   requestAnimationFrame(construirTrilho);
@@ -188,8 +262,8 @@ function desenharPessoas() {
     x.textContent = "✕";
     x.title = `Remover ${p.nome}`;
     x.onclick = async () => {
-      if (!confirm(`Remover ${p.nome} da lista?`)) return;
-      await api.remover("pessoas", id).catch(() => avisar("Não consegui gravar — tenta outra vez."));
+      if (!confirm(`Remover ${p.nome} da lista? O voto e o material dessa pessoa também saem.`)) return;
+      await api.removerPessoa(id, p.nome).catch(() => falhaGravacao("Não consegui gravar. Tenta outra vez."));
       sincronizar();
     };
     et.append(x);
@@ -198,7 +272,7 @@ function desenharPessoas() {
 
   const sel = $("#select-eu");
   const atual = localStorage.getItem("coura-eu") || sel.value;
-  sel.innerHTML = '<option value="">— escolhe o teu nome —</option>';
+  sel.innerHTML = '<option value="">escolhe o teu nome…</option>';
   for (const [, p] of entradas) {
     const op = document.createElement("option");
     op.value = op.textContent = p.nome;
@@ -218,9 +292,87 @@ function quemSou() {
     void caixa.offsetWidth; // reinicia a animação
     caixa.classList.add("atencao");
     caixa.scrollIntoView({ behavior: "smooth", block: "center" });
-    avisar("Primeiro diz-nos quem és — inscreve-te em «A tribo».");
+    avisar("Primeiro diz-nos quem és: inscreve-te em «A tribo».");
   }
   return eu;
+}
+
+function desenharVotos() {
+  const caixa = $("#opcoes-voto");
+  caixa.innerHTML = "";
+  const votos = Object.values(estado.votos || {});
+  const total = votos.length;
+  const eu = $("#select-eu").value;
+  const meuVoto = eu ? (estado.votos[chaveNome(eu)] || {}).dia : null;
+  const maximo = Math.max(0, ...DIAS_PARTIDA.map((o) => votos.filter((v) => v.dia === o.dia).length));
+
+  for (const opcao of DIAS_PARTIDA) {
+    const meus = votos.filter((v) => v.dia === opcao.dia).sort((a, b) => (a.t || 0) - (b.t || 0));
+    const lider = maximo > 0 && meus.length === maximo;
+
+    const botao = document.createElement("button");
+    botao.type = "button";
+    botao.className = "opcao" + (meuVoto === opcao.dia ? " minha" : "") + (lider ? " lider" : "");
+    botao.setAttribute("aria-pressed", meuVoto === opcao.dia);
+
+    const semana = document.createElement("span");
+    semana.className = "dia-semana";
+    semana.textContent = opcao.semana;
+
+    const num = document.createElement("span");
+    num.className = "dia-num";
+    num.textContent = opcao.dia;
+    const mes = document.createElement("span");
+    mes.className = "dia-mes";
+    mes.textContent = "de agosto";
+
+    const barra = document.createElement("div");
+    barra.className = "barra";
+    const enchimento = document.createElement("div");
+    barra.append(enchimento);
+
+    const linha = document.createElement("div");
+    linha.className = "votos-linha";
+    const numVotos = document.createElement("span");
+    numVotos.className = "votos-num";
+    numVotos.textContent = meus.length === 1 ? "1 voto" : `${meus.length} votos`;
+    linha.append(numVotos);
+    if (lider) {
+      const selo = document.createElement("span");
+      selo.className = "selo-lider";
+      selo.textContent = "à frente";
+      linha.append(selo);
+    }
+
+    const quem = document.createElement("div");
+    quem.className = "quem";
+    for (const v of meus) {
+      const mini = document.createElement("span");
+      mini.className = "mini";
+      mini.textContent = v.nome;
+      quem.append(mini);
+    }
+
+    botao.append(semana, num, mes, barra, linha, quem);
+    botao.onclick = async () => {
+      const nome = quemSou();
+      if (!nome) return;
+      const anular = meuVoto === opcao.dia;
+      try {
+        await api.votar(nome, anular ? null : opcao.dia);
+      } catch {
+        falhaGravacao("Não consegui gravar o voto. Tenta outra vez.");
+        return;
+      }
+      avisar(anular ? "Voto anulado." : `Voto registado: ${opcao.semana.toLowerCase()}, ${opcao.dia} de agosto.`);
+      sincronizar();
+    };
+
+    caixa.append(botao);
+    requestAnimationFrame(() => {
+      enchimento.style.width = total ? (meus.length / total) * 100 + "%" : "0%";
+    });
+  }
 }
 
 function desenharMaterial() {
@@ -270,7 +422,7 @@ function desenharMaterial() {
       x.textContent = "✕";
       x.title = "Já não levo";
       x.onclick = async () => {
-        await api.remover("material", id).catch(() => avisar("Não consegui gravar — tenta outra vez."));
+        await api.remover("material", id).catch(() => falhaGravacao("Não consegui gravar. Tenta outra vez."));
         sincronizar();
       };
       mini.append(x);
@@ -290,9 +442,13 @@ function desenharMaterial() {
       acao.onclick = async () => {
         const eu = quemSou();
         if (!eu) return;
-        await api.adicionar("material", { item: item.id, nome: eu, t: Date.now() })
-          .catch(() => avisar("Não consegui gravar — tenta outra vez."));
-        avisar(`Anotado: ${item.nome.toLowerCase()} — ${eu}.`);
+        try {
+          await api.adicionar("material", { item: item.id, nome: eu, t: Date.now() });
+        } catch {
+          falhaGravacao("Não consegui gravar. Tenta outra vez.");
+          return;
+        }
+        avisar(`Anotado: ${item.nome.toLowerCase()}, por ${eu}.`);
         sincronizar();
       };
     }
@@ -316,11 +472,13 @@ function desenharExtras() {
   for (const [id, c] of extras) {
     const et = document.createElement("span");
     et.className = "etiqueta";
-    et.append(`${c.extra} — ${c.nome}`);
+    et.append(`${c.extra} · ${c.nome}`);
     const x = document.createElement("button");
     x.textContent = "✕";
+    x.title = `Remover ${c.extra}`;
+    x.setAttribute("aria-label", `Remover ${c.extra}`);
     x.onclick = async () => {
-      await api.remover("material", id).catch(() => avisar("Não consegui gravar — tenta outra vez."));
+      await api.remover("material", id).catch(() => falhaGravacao("Não consegui gravar. Tenta outra vez."));
       sincronizar();
     };
     et.append(x);
@@ -336,17 +494,23 @@ $("#form-pessoa").addEventListener("submit", async (e) => {
   const repetido = Object.values(estado.pessoas)
     .some((p) => p.nome.toLowerCase() === nome.toLowerCase());
   if (repetido) { avisar(`${nome} já está na lista.`); return; }
-  await api.adicionar("pessoas", { nome, t: Date.now() })
-    .catch(() => avisar("Não consegui gravar — tenta outra vez."));
+  try {
+    await api.adicionar("pessoas", { nome, t: Date.now() });
+  } catch {
+    falhaGravacao("Não consegui gravar. Tenta outra vez.");
+    return;
+  }
   $("#input-nome").value = "";
   localStorage.setItem("coura-eu", nome);
   avisar(`Bem-vindo/a à tribo, ${nome}.`);
   await sincronizar();
   $("#select-eu").value = nome;
+  desenharVotos();
 });
 
 $("#select-eu").addEventListener("change", (e) => {
   if (e.target.value) localStorage.setItem("coura-eu", e.target.value);
+  desenharVotos(); // destacar o "meu" voto
 });
 
 function mudarPrevisao(delta) {
@@ -355,9 +519,15 @@ function mudarPrevisao(delta) {
   $("#valor-previsao").textContent = n;
   $("#eco-previsao").textContent = n;
   desenharMaterial();
+  mudarPrevisao._pendente = true;
   clearTimeout(mudarPrevisao._tempo);
-  mudarPrevisao._tempo = setTimeout(() => {
-    api.definirPrevisao(n).catch(() => avisar("Não consegui gravar a previsão."));
+  mudarPrevisao._tempo = setTimeout(async () => {
+    try {
+      await api.definirPrevisao(n);
+    } catch {
+      falhaGravacao("Não consegui gravar a previsão.");
+    }
+    mudarPrevisao._pendente = false;
   }, 600);
 }
 $("#menos").addEventListener("click", () => mudarPrevisao(-1));
@@ -369,8 +539,12 @@ $("#form-extra").addEventListener("submit", async (e) => {
   if (!extra) return;
   const eu = quemSou();
   if (!eu) return;
-  await api.adicionar("material", { item: "_extra", extra, nome: eu, t: Date.now() })
-    .catch(() => avisar("Não consegui gravar — tenta outra vez."));
+  try {
+    await api.adicionar("material", { item: "_extra", extra, nome: eu, t: Date.now() });
+  } catch {
+    falhaGravacao("Não consegui gravar. Tenta outra vez.");
+    return;
+  }
   $("#input-extra").value = "";
   avisar(`Adicionado: ${extra}.`);
   sincronizar();

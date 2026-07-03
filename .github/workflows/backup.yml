@@ -18,7 +18,7 @@ jobs:
 
       - name: Descarregar dados do kvdb.io
         run: |
-          BUCKET=$(grep -oP 'kvdbBucket:\s*"\K[^"]+' config.js)
+          BUCKET=$(grep -oP 'kvdbBucket:\s*"\K[^"]+' config.js || true)
           if [ -z "$BUCKET" ]; then echo "Sem bucket configurado."; exit 0; fi
           curl -sf "https://kvdb.io/$BUCKET/dados" -o dados-backup.json.novo || exit 0
           # só substitui se for JSON válido

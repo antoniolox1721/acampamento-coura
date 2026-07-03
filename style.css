@@ -392,6 +392,67 @@ select { appearance: none; cursor: pointer; }
   font-variant-numeric: tabular-nums;
 }
 
+/* ═══════════ PARTIDA (votação) ═══════════ */
+.opcoes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+.opcao {
+  font: inherit;
+  text-align: left;
+  color: var(--papel);
+  background: var(--painel);
+  border: 1px solid var(--linha);
+  border-radius: 14px;
+  padding: 1.5rem 1.4rem 1.3rem;
+  cursor: pointer;
+  transition: border-color .3s, background .3s, transform .3s;
+}
+.opcao:hover { border-color: rgba(217, 136, 74, .55); transform: translateY(-3px); }
+.opcao .dia-semana {
+  display: block;
+  font-size: .64rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .26em;
+  color: var(--mudo);
+  margin-bottom: .7rem;
+}
+.opcao .dia-num {
+  font-family: var(--serif);
+  font-weight: 380;
+  font-size: 3.2rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.opcao .dia-mes {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--mudo);
+  font-size: 1rem;
+  margin-left: .25rem;
+}
+.opcao .barra { margin: 1.1rem 0 .6rem; }
+.opcao .votos-linha {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: .74rem;
+  color: var(--mudo);
+}
+.opcao .votos-num { font-variant-numeric: tabular-nums; }
+.opcao .quem { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .8rem; min-height: 1.2rem; }
+.opcao.minha { border-color: var(--brasa); background: rgba(217, 136, 74, .07); }
+.opcao.lider .dia-num { color: var(--brasa-claro); }
+.opcao .selo-lider {
+  font-size: .6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .2em;
+  color: var(--brasa-claro);
+}
+
 /* ═══════════ MATERIAL ═══════════ */
 .quem-sou {
   display: flex;
@@ -407,6 +468,8 @@ select { appearance: none; cursor: pointer; }
 }
 .quem-sou label { text-transform: uppercase; letter-spacing: .18em; font-size: .65rem; font-weight: 600; color: var(--mudo); }
 .quem-sou select { flex: 1 1 200px; }
+.quem-sou .dica { flex-basis: 100%; font-size: .72rem; color: var(--mudo); font-style: italic; }
+#tribo .quem-sou { margin: 2.2rem 0 0; }
 .quem-sou.atencao { border-color: var(--brasa); animation: abanar .5s ease 2; }
 @keyframes abanar {
   0%, 100% { transform: translateX(0); }
@@ -580,7 +643,11 @@ footer .coordenadas { margin: 0 0 .6rem; }
   .item { grid-template-columns: 1fr auto; }
   .item .idx { display: none; }
   .item .acao, .item .selo { grid-column: 1 / -1; justify-self: start; margin-top: .5rem; }
-  .ligacoes a { margin-left: 1rem; letter-spacing: .14em; }
+  .item .acao { padding: .95rem 1.5rem; }
+  .mini button, .etiqueta button { padding: .45rem .55rem; margin: -.35rem 0; }
+  #topo nav { padding: .85rem .9rem; }
+  .ligacoes a { margin-left: .65rem; letter-spacing: .07em; font-size: .62rem; }
+  .marca { font-size: .95rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

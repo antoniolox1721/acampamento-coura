@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Paredes de Coura — Acampamento 2026</title>
-<meta name="description" content="Organização do acampamento em Paredes de Coura — inscreve-te e diz o que levas.">
-<meta property="og:title" content="Paredes de Coura — Acampamento 2026">
+<title>Paredes de Coura · Acampamento 2026</title>
+<meta name="description" content="Organização do acampamento em Paredes de Coura: inscreve-te e diz o que levas.">
+<meta property="og:title" content="Paredes de Coura · Acampamento 2026">
 <meta property="og:description" content="Vinte pessoas, um rio, três dias fora do mapa.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 26 L14 8 L20 18 L24 12 L30 26 Z' fill='%23d9884a'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -66,6 +66,7 @@
     <a class="marca" href="#">Coura<span>／</span>26</a>
     <div class="ligacoes">
       <a href="#tribo">A tribo</a>
+      <a href="#partida">A partida</a>
       <a href="#material">Material</a>
       <a href="#mochila">Mochila</a>
     </div>
@@ -73,8 +74,8 @@
   <div id="barra-progresso"></div>
 </header>
 
-<div id="aviso-local" hidden>
-  Sem ligação à base partilhada — os dados ficam só neste dispositivo por agora.
+<div id="aviso-local" role="alert" hidden>
+  Sem ligação à base partilhada: os dados ficam só neste dispositivo por agora.
 </div>
 
 <main>
@@ -82,13 +83,13 @@
 
   <!-- HERO -->
   <section id="hero">
-    <p class="sobre-linha entra e1">Acampamento — Verão 2026</p>
+    <p class="sobre-linha entra e1">Acampamento · Verão 2026</p>
     <h1>
       <span class="linha-t"><span class="entra e2">Paredes</span></span>
       <span class="linha-t"><span class="entra e3">de <em>Coura</em></span></span>
     </h1>
     <p class="lema entra e4">Vinte pessoas, um rio, três dias fora do mapa.</p>
-    <p class="coordenadas entra e5">41°54′ N &nbsp;·&nbsp; 8°33′ O &nbsp;—&nbsp; Alto Minho</p>
+    <p class="coordenadas entra e5">41°54′ N &nbsp;·&nbsp; 8°33′ O &nbsp;·&nbsp; Alto Minho</p>
     <div class="indicador entra e5"><span></span></div>
   </section>
 
@@ -109,7 +110,7 @@
       </div>
       <div class="coluna revela">
         <h3>A regra</h3>
-        <p>Cada um trata da sua mochila. O material de grupo divide-se por todos — ninguém carrega o acampamento sozinho.</p>
+        <p>Cada um trata da sua mochila. O material de grupo divide-se por todos: ninguém carrega o acampamento sozinho.</p>
       </div>
     </div>
   </section>
@@ -120,13 +121,18 @@
       <span class="num">02</span>
       <h2>A tribo</h2>
     </div>
-    <p class="descricao revela">Escreve o teu nome e junta-te. Podes voltar a esta página quando quiseres — está sempre atualizada.</p>
+    <p class="descricao revela">Escreve o teu nome e junta-te. Podes voltar a esta página quando quiseres: está sempre atualizada.</p>
     <form id="form-pessoa" class="revela" autocomplete="off">
-      <input id="input-nome" type="text" placeholder="O teu nome" maxlength="30" required>
+      <input id="input-nome" type="text" placeholder="O teu nome" aria-label="O teu nome" maxlength="30" required>
       <button type="submit" class="botao">Alinho</button>
     </form>
     <p class="contagem revela"><span id="num-pessoas">0</span><span class="rotulo-contagem">confirmados</span></p>
     <div id="lista-pessoas" class="etiquetas"></div>
+    <div class="quem-sou revela">
+      <label for="select-eu">Quem és tu?</label>
+      <select id="select-eu"><option value="">escolhe o teu nome…</option></select>
+      <span class="dica">necessário para votares e reclamares material</span>
+    </div>
     <div class="previsao revela">
       <span>Previsão total para o cálculo do material</span>
       <div class="passos">
@@ -137,44 +143,53 @@
     </div>
   </section>
 
-  <!-- 03 MATERIAL -->
-  <section id="material">
+  <!-- 03 PARTIDA -->
+  <section id="partida">
     <div class="cabeca revela">
       <span class="num">03</span>
+      <h2>A partida</h2>
+    </div>
+    <p class="descricao revela">
+      Em que dia arrancamos? Vota num dos três. Podes mudar de ideias
+      a qualquer momento e um segundo toque no teu voto anula-o.
+    </p>
+    <div id="opcoes-voto" class="opcoes revela"></div>
+  </section>
+
+  <!-- 04 MATERIAL -->
+  <section id="material">
+    <div class="cabeca revela">
+      <span class="num">04</span>
       <h2>O material</h2>
     </div>
     <p class="descricao revela">
       Quantidades calculadas para <strong><span id="eco-previsao">20</span> pessoas</strong>.
-      Diz-nos quem és e reclama o que podes levar.
+      Reclama o que podes levar.
     </p>
-    <div class="quem-sou revela">
-      <label for="select-eu">Quem és tu?</label>
-      <select id="select-eu"><option value="">— escolhe o teu nome —</option></select>
-    </div>
     <div id="lista-material" class="revela"></div>
 
     <h3 class="sub-seccao revela">Extras &amp; ideias</h3>
-    <p class="descricao revela">Rede de voleibol, baralho de cartas, marshmallows — o que quiseres acrescentar.</p>
+    <p class="descricao revela">Rede de voleibol, baralho de cartas, marshmallows: tudo o que quiseres acrescentar.</p>
     <form id="form-extra" class="revela" autocomplete="off">
-      <input id="input-extra" type="text" placeholder="O que mais podes levar?" maxlength="40" required>
+      <input id="input-extra" type="text" placeholder="O que mais podes levar?" aria-label="O que mais podes levar" maxlength="40" required>
       <button type="submit" class="botao fantasma">Adicionar</button>
     </form>
     <div id="lista-extras" class="etiquetas"></div>
   </section>
 
-  <!-- 04 MOCHILA -->
+  <!-- 05 MOCHILA -->
   <section id="mochila">
     <div class="cabeca revela">
-      <span class="num">04</span>
+      <span class="num">05</span>
       <h2>A mochila</h2>
     </div>
-    <p class="descricao revela">Isto é contigo — cada pessoa leva o seu. Vai marcando à medida que arrumas; fica guardado no teu telemóvel.</p>
+    <p class="descricao revela">Isto é contigo: cada pessoa leva o seu. Vai marcando à medida que arrumas; fica guardado no teu telemóvel.</p>
     <div id="lista-essenciais" class="grelha-essenciais revela"></div>
   </section>
 
   <footer>
     <p class="coordenadas">41°54′ N · 8°33′ O</p>
-    <p>Feito para a tribo de Coura — <span id="ano"></span>. O rio espera.</p>
+    <p>Feito para a tribo de Coura, <span id="ano"></span>. O rio espera.</p>
   </footer>
 </main>
 
