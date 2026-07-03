@@ -1,0 +1,39 @@
+name: Backup dos dados
+
+# Faz backup dos dados partilhados (kvdb.io) para o repositório e,
+# de caminho, mantém o bucket ativo. Corre de 12 em 12 horas.
+on:
+  schedule:
+    - cron: "17 5,17 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Descarregar dados do kvdb.io
+        run: |
+          BUCKET=$(grep -oP 'kvdbBucket:\s*"\K[^"]+' config.js)
+          if [ -z "$BUCKET" ]; then echo "Sem bucket configurado."; exit 0; fi
+          curl -sf "https://kvdb.io/$BUCKET/dados" -o dados-backup.json.novo || exit 0
+          # só substitui se for JSON válido
+          python3 -m json.tool dados-backup.json.novo > /dev/null 2>&1 || exit 0
+          mv dados-backup.json.novo dados-backup.json
+
+      - name: Guardar no repositório se mudou
+        run: |
+          rm -f dados-backup.json.novo
+          if [ -n "$(git status --porcelain dados-backup.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add dados-backup.json
+            git commit -m "Backup automático dos dados"
+            git push
+          else
+            echo "Sem alterações."
+          fi

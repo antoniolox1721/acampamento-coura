@@ -1,10 +1,12 @@
-// ⚙️ CONFIGURAÇÃO DA BASE DE DADOS PARTILHADA
+// ⚙️ ONDE VIVEM OS DADOS PARTILHADOS
 //
-// Cola aqui o URL da tua Firebase Realtime Database (vê o README.md — demora 5 min).
-// Exemplo: "https://acampamento-coura-default-rtdb.europe-west1.firebasedatabase.app"
+// Por omissão, os dados vivem num "bucket" público do kvdb.io — grátis,
+// sem contas e sem servidor. O GitHub Actions faz backup do conteúdo
+// para este repositório de 12 em 12 horas (ver .github/workflows/backup.yml).
 //
-// Enquanto estiver vazio, o site funciona em "modo local":
-// os dados ficam guardados só no dispositivo de cada pessoa.
+// Se preferires uma base mais robusta, cria uma Firebase Realtime Database
+// (instruções no README.md) e preenche firebaseUrl — passa a ter prioridade.
 window.CONFIG = {
-  dbUrl: ""
+  kvdbBucket: "3adAvzpGcAY9audDMRdHqR",
+  firebaseUrl: ""
 };

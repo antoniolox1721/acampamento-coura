@@ -1,82 +1,67 @@
-# 🏕️ Acampamento · Paredes de Coura
+# Paredes de Coura — Acampamento 2026
 
-Site público para organizar o acampamento: cada pessoa inscreve-se, escolhe o
-material de grupo que leva (1 fogão por cada 4 pessoas, 1 tacho por cada 4, etc.)
-e consulta a checklist de essenciais individuais. Adeus, Excel.
+Site público para organizar o acampamento: cada pessoa inscreve-se, reclama o
+material de grupo que pode levar (um fogão por cada quatro pessoas, um tacho
+por cada quatro, etc.) e consulta a checklist da mochila. Adeus, Excel.
 
 **Site:** https://antoniolox1721.github.io/acampamento-coura/
 
----
+## Como funcionam os dados partilhados
 
-## ⚡ Ativar os dados partilhados (5 minutos, grátis)
+O GitHub Pages só serve ficheiros estáticos — não aceita escritas de visitantes
+anónimos, e qualquer token de escrita publicado no site seria revogado
+automaticamente pelo GitHub. Por isso os dados vivem no sítio mais simples
+possível que aceita escritas:
 
-O GitHub Pages só serve ficheiros estáticos, por isso os dados partilhados
-(quem vem + quem leva o quê) vivem numa **Firebase Realtime Database** gratuita.
-Enquanto não a configurares, o site funciona em «modo local» (cada pessoa só
-vê os seus próprios dados).
+- **kvdb.io** — um "bucket" público de chave-valor, grátis, **sem contas nem
+  configuração**. O ID do bucket está em [`config.js`](config.js); qualquer
+  pessoa com o link do site lê e escreve (é esse o objetivo).
+- **Backup no repositório** — o GitHub Actions
+  ([`.github/workflows/backup.yml`](.github/workflows/backup.yml)) descarrega
+  os dados de 12 em 12 horas e faz commit de `dados-backup.json`. Se o bucket
+  desaparecer um dia, os dados estão aqui, com histórico no git. As visitas
+  regulares também mantêm o bucket ativo.
+- **Modo local (fallback)** — se o site não conseguir contactar o bucket,
+  avisa e guarda os dados apenas no dispositivo, em vez de falhar.
 
-1. Vai a [console.firebase.google.com](https://console.firebase.google.com) e
-   entra com a tua conta Google.
-2. **Criar projeto** → dá-lhe um nome (ex.: `acampamento-coura`) → podes
-   desativar o Google Analytics → **Criar**.
-3. No menu lateral: **Criação (Build) → Realtime Database → Criar base de dados**.
-   Escolhe a localização `europe-west1` e começa em **modo bloqueado**.
-4. No separador **Regras (Rules)**, cola isto e carrega em **Publicar**:
+### Alternativa mais robusta: Firebase (opcional, 5 min)
 
+Se o kvdb.io se revelar instável, cria uma
+[Firebase Realtime Database](https://console.firebase.google.com) gratuita:
+
+1. **Criar projeto** → Realtime Database → **Criar base de dados**
+   (`europe-west1`, modo bloqueado).
+2. Nas **Regras**, publica:
    ```json
-   {
-     "rules": {
-       "dados": {
-         ".read": true,
-         ".write": true
-       }
-     }
-   }
+   { "rules": { "dados": { ".read": true, ".write": true } } }
    ```
+3. Copia o URL da base (ex.:
+   `https://xxx-default-rtdb.europe-west1.firebasedatabase.app`) para
+   `firebaseUrl` em `config.js` — passa a ter prioridade sobre o kvdb.
+4. Para migrar os dados existentes, importa o `dados-backup.json` na consola
+   do Firebase (Realtime Database → ⋮ → *Import JSON*), dentro de um nó `dados`.
 
-   > ⚠️ Isto deixa qualquer pessoa com o link ler e escrever — é esse o
-   > objetivo (site aberto para os amigos preencherem). Não guardes lá nada
-   > sensível.
+## Desenvolver localmente
 
-5. Copia o URL da base de dados que aparece no topo (algo como
-   `https://acampamento-coura-default-rtdb.europe-west1.firebasedatabase.app`).
-6. Abre o ficheiro [`config.js`](config.js) e cola o URL:
-
-   ```js
-   window.CONFIG = {
-     dbUrl: "https://acampamento-coura-default-rtdb.europe-west1.firebasedatabase.app"
-   };
-   ```
-
-7. Faz commit e push — dois minutos depois o site está partilhado:
-
-   ```bash
-   git add config.js
-   git commit -m "Liga a base de dados partilhada"
-   git push
-   ```
-
-## 🛠️ Desenvolver localmente
-
-Não há build nem dependências — abre o `index.html` no browser, ou:
+Não há build nem dependências:
 
 ```bash
 python3 -m http.server 8000
 # → http://localhost:8000
 ```
 
-## 📁 Estrutura
+## Estrutura
 
-| Ficheiro     | O que faz                                                        |
-| ------------ | ---------------------------------------------------------------- |
-| `index.html` | Estrutura da página + cenário SVG animado (dia → noite ao scroll) |
-| `style.css`  | Estilos, animações (fogueira, estrelas, nuvens, parallax)         |
-| `app.js`     | Lógica: inscrições, material de grupo, extras, checklist          |
-| `config.js`  | URL da Firebase Realtime Database                                 |
+| Ficheiro                       | O que faz                                                            |
+| ------------------------------ | -------------------------------------------------------------------- |
+| `index.html`                   | Estrutura da página e cenário SVG (serra ao anoitecer)               |
+| `style.css`                    | Design, tipografia e animações                                       |
+| `app.js`                       | Lógica: tribo, material, extras, checklist, cenário animado ao scroll |
+| `config.js`                    | Onde vivem os dados (kvdb.io ou Firebase)                            |
+| `.github/workflows/backup.yml` | Backup automático dos dados para o repositório                       |
 
-## 🧮 Como são calculadas as quantidades
+## Ajustar itens e rácios
 
-O catálogo em `app.js` define quantas pessoas partilham cada item
-(ex.: `por: 4` = 1 unidade por cada 4 pessoas). As quantidades necessárias
-são calculadas a partir da «previsão total de pessoas» definida no site
-(por omissão, 20). Para mudar itens ou rácios, edita o array `CATALOGO`.
+O array `CATALOGO` no topo de `app.js` define cada item e quantas pessoas
+partilham uma unidade (`por: 4` = 1 unidade por cada 4 pessoas). As quantidades
+são calculadas a partir da «previsão total» definida na secção *A tribo*.
