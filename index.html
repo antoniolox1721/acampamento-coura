@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Acampamento · Paredes de Coura</title>
+<meta name="description" content="Organização do acampamento em Paredes de Coura — inscreve-te e diz o que levas!">
+<meta property="og:title" content="Acampamento · Paredes de Coura 🏕️">
+<meta property="og:description" content="Inscreve-te e diz o que levas — sem folhas de Excel.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏕️</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ══════════ CENÁRIO ANIMADO (fixo, anima com o scroll) ══════════ -->
+<div id="cenario" aria-hidden="true">
+  <svg id="cena" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMax slice">
+    <!-- estrelas (geradas em JS) -->
+    <g id="estrelas"></g>
+
+    <!-- sol -->
+    <g id="sol">
+      <circle cx="1120" cy="170" r="70" fill="#ffd54a"/>
+      <circle cx="1120" cy="170" r="100" fill="#ffd54a" opacity=".25"/>
+      <circle cx="1120" cy="170" r="140" fill="#ffd54a" opacity=".1"/>
+    </g>
+
+    <!-- lua -->
+    <g id="lua" opacity="0">
+      <circle cx="1120" cy="170" r="52" fill="#f4f1de"/>
+      <circle cx="1145" cy="155" r="46" fill="var(--ceu-topo, #0b1d3a)" opacity=".92"/>
+    </g>
+
+    <!-- nuvens -->
+    <g id="nuvens" fill="#ffffff" opacity=".85">
+      <g class="nuvem n1">
+        <ellipse cx="260" cy="180" rx="90" ry="28"/>
+        <ellipse cx="330" cy="165" rx="60" ry="22"/>
+        <ellipse cx="200" cy="168" rx="55" ry="20"/>
+      </g>
+      <g class="nuvem n2">
+        <ellipse cx="760" cy="110" rx="70" ry="22"/>
+        <ellipse cx="815" cy="100" rx="45" ry="17"/>
+      </g>
+      <g class="nuvem n3">
+        <ellipse cx="1250" cy="300" rx="80" ry="24"/>
+        <ellipse cx="1310" cy="288" rx="50" ry="18"/>
+      </g>
+    </g>
+
+    <!-- colinas do Minho (parallax por camada) -->
+    <g id="colina-longe">
+      <path d="M0,560 Q180,440 380,510 T760,480 Q950,430 1130,500 T1440,470 V900 H0 Z" fill="#8fbf6f"/>
+    </g>
+    <g id="colina-meio">
+      <path d="M0,640 Q220,520 440,600 T900,570 Q1120,520 1300,590 T1440,580 V900 H0 Z" fill="#5d9c4a"/>
+      <!-- pinheiros -->
+      <g fill="#3f7a35">
+        <path d="M180,600 l22,-52 22,52 Z M187,572 l15,-36 15,36 Z"/>
+        <path d="M250,614 l18,-44 18,44 Z M256,590 l12,-30 12,30 Z"/>
+        <path d="M1040,592 l20,-48 20,48 Z M1046,566 l14,-34 14,34 Z"/>
+        <path d="M1110,606 l16,-40 16,40 Z M1115,584 l11,-28 11,28 Z"/>
+      </g>
+    </g>
+
+    <!-- rio Coura -->
+    <g id="rio">
+      <path d="M0,700 Q360,670 720,700 T1440,690 V760 Q1080,790 720,760 T0,775 Z" fill="#5fb4d8" opacity=".9"/>
+      <path d="M120,720 q40,-6 80,0 M420,735 q45,-7 90,0 M880,718 q45,-7 90,0 M1180,735 q40,-6 80,0"
+            stroke="#cdeef9" stroke-width="4" fill="none" stroke-linecap="round" opacity=".7"/>
+    </g>
+
+    <!-- colina da frente -->
+    <g id="colina-perto">
+      <path d="M0,790 Q260,730 560,775 T1080,765 Q1280,745 1440,780 V900 H0 Z" fill="#3f7a35"/>
+    </g>
+
+    <!-- acampamento -->
+    <g id="acampamento">
+      <!-- tenda -->
+      <g id="tenda">
+        <path d="M980,830 L1075,690 L1170,830 Z" fill="#e2683b"/>
+        <path d="M1075,690 L1170,830 L1130,830 L1068,712 Z" fill="#c14e28"/>
+        <path d="M1046,830 L1075,760 L1104,830 Z" fill="#7a2f16"/>
+        <ellipse id="brilho-tenda" cx="1075" cy="805" rx="26" ry="20" fill="#ffd97a" opacity="0"/>
+        <line x1="1075" y1="690" x2="1075" y2="668" stroke="#7a2f16" stroke-width="4"/>
+        <path d="M1075,668 h30 l-8,9 8,9 h-30 Z" fill="#ffd54a"/>
+      </g>
+      <!-- fogueira -->
+      <g id="fogueira">
+        <ellipse cx="840" cy="836" rx="46" ry="9" fill="#2a5424"/>
+        <g stroke="#6b4423" stroke-width="9" stroke-linecap="round">
+          <line x1="812" y1="838" x2="868" y2="826"/>
+          <line x1="814" y1="826" x2="866" y2="838"/>
+        </g>
+        <g id="chamas" opacity="0">
+          <path id="chama-grande" d="M840,824 C818,798 826,776 840,756 C854,776 862,798 840,824 Z" fill="#ff8c2e"/>
+          <path id="chama-pequena" d="M840,818 C830,802 834,790 840,778 C846,790 850,802 840,818 Z" fill="#ffd54a"/>
+          <circle class="faisca f1" cx="836" cy="770" r="3" fill="#ffd54a"/>
+          <circle class="faisca f2" cx="848" cy="762" r="2.4" fill="#ff8c2e"/>
+          <circle class="faisca f3" cx="842" cy="754" r="2" fill="#ffd54a"/>
+        </g>
+      </g>
+      <!-- mochila -->
+      <g id="mochila">
+        <rect x="740" y="800" width="34" height="40" rx="10" fill="#3a6ea5"/>
+        <rect x="748" y="792" width="18" height="14" rx="6" fill="#2c5580"/>
+        <rect x="746" y="814" width="22" height="16" rx="5" fill="#2c5580"/>
+      </g>
+    </g>
+  </svg>
+</div>
+
+<!-- ══════════ CONTEÚDO ══════════ -->
+<header id="topo">
+  <nav>
+    <span class="logo">🏕️ Coura</span>
+    <div class="links">
+      <a href="#pessoas">Quem vem</a>
+      <a href="#material">Material</a>
+      <a href="#essenciais">Essenciais</a>
+    </div>
+  </nav>
+  <div id="barra-progresso"></div>
+</header>
+
+<div id="aviso-local" hidden>
+  ⚠️ <strong>Modo local:</strong> os dados ficam só neste dispositivo.
+  Para partilhar com toda a gente, segue as instruções do <code>README.md</code>.
+</div>
+
+<main>
+  <!-- HERO -->
+  <section id="hero">
+    <p class="pre-titulo revela">Verão 2026 · Alto Minho</p>
+    <h1 class="revela">Paredes de<br>Coura</h1>
+    <p class="sub-titulo revela">Uma tribo de ~20 pessoas, um rio, e zero folhas de Excel.<br>
+    Inscreve-te, escolhe o que levas, e aparece. 🌊</p>
+    <a class="seta" href="#plano" aria-label="Descer">
+      <svg viewBox="0 0 24 24" width="34" height="34"><path d="M12 16l-7-7h14z" fill="currentColor"/></svg>
+    </a>
+  </section>
+
+  <!-- PLANO -->
+  <section id="plano">
+    <div class="cartao revela">
+      <h2>📍 O plano</h2>
+      <div class="grelha-info">
+        <div class="info revela">
+          <span class="icone">🏞️</span>
+          <h3>O sítio</h3>
+          <p>Paredes de Coura, coração verde do Minho. Praia fluvial do Taboão a dois passos, água fresca garantida.</p>
+        </div>
+        <div class="info revela">
+          <span class="icone">⛺</span>
+          <h3>O esquema</h3>
+          <p>Campismo a sério: fogões, tachos e geleiras partilhados por grupos de 4–5. Aqui em baixo vês o que falta levar.</p>
+        </div>
+        <div class="info revela">
+          <span class="icone">🎒</span>
+          <h3>A regra de ouro</h3>
+          <p>Cada um trata do seu material individual (lista lá em baixo). O material de grupo divide-se aqui — sem stress.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PESSOAS -->
+  <section id="pessoas">
+    <div class="cartao revela">
+      <h2>🙋 Quem vem?</h2>
+      <p class="descricao">Escreve o teu nome e junta-te à tribo. Podes voltar aqui quando quiseres.</p>
+      <form id="form-pessoa" autocomplete="off">
+        <input id="input-nome" type="text" placeholder="O teu nome…" maxlength="30" required>
+        <button type="submit" class="botao">Alinho! 🙌</button>
+      </form>
+      <p class="contador"><span id="num-pessoas">0</span> aventureiros confirmados</p>
+      <div id="lista-pessoas" class="fichas"></div>
+      <div class="previsao">
+        <label for="input-previsao">Previsão total de pessoas (para calcular o material):</label>
+        <input id="input-previsao" type="number" min="1" max="60" value="20">
+      </div>
+    </div>
+  </section>
+
+  <!-- MATERIAL -->
+  <section id="material">
+    <div class="cartao revela">
+      <h2>🎒 Material de grupo</h2>
+      <p class="descricao">
+        Primeiro diz-nos quem és, depois carrega em <strong>«Eu levo»</strong> no que puderes trazer.
+        As quantidades são calculadas para <strong><span id="eco-previsao">20</span> pessoas</strong>.
+      </p>
+      <div class="quem-sou">
+        <label for="select-eu">Quem és tu?</label>
+        <select id="select-eu"><option value="">— escolhe o teu nome —</option></select>
+      </div>
+      <div id="lista-material"></div>
+
+      <h3 class="titulo-extras">✨ Extras &amp; ideias</h3>
+      <p class="descricao">Rede de voleibol? Colunas extra? Marshmallows? Acrescenta aqui.</p>
+      <form id="form-extra" autocomplete="off">
+        <input id="input-extra" type="text" placeholder="O que mais podes levar?" maxlength="40" required>
+        <button type="submit" class="botao secundario">Adicionar</button>
+      </form>
+      <div id="lista-extras" class="fichas"></div>
+    </div>
+  </section>
+
+  <!-- ESSENCIAIS -->
+  <section id="essenciais">
+    <div class="cartao revela">
+      <h2>✅ Essenciais individuais</h2>
+      <p class="descricao">Isto é contigo — cada pessoa leva o seu. Vai marcando à medida que arrumas a mochila (fica guardado no teu telemóvel).</p>
+      <div id="lista-essenciais" class="grelha-essenciais"></div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Feito com 🔥 para a tribo de Coura · <span id="ano"></span></p>
+    <p class="mini">Bora lá. A fogueira acende-se sozinha… se alguém levar o isqueiro. 😉</p>
+  </footer>
+</main>
+
+<div id="toast" role="status"></div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
