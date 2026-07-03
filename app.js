@@ -1,8 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════
    Paredes de Coura · Acampamento 2026
-   Dados partilhados num "bucket" kvdb.io (sem contas, sem servidor),
-   com backup automático para o repositório via GitHub Actions.
-   Alternativa: Firebase (ver config.js). Sem ligação → modo local.
+   Dados partilhados num "bin" público do npoint.io (sem contas,
+   sem servidor), com backup automático para o repositório via
+   GitHub Actions. Alternativa: Firebase (ver config.js).
+   Sem ligação → modo local.
    ═══════════════════════════════════════════════════════════════ */
 
 // ───────────── Catálogo de material de grupo ─────────────
@@ -63,9 +64,9 @@ const DIAS_PARTIDA = [
 const chaveNome = (nome) =>
   Array.from(new TextEncoder().encode(nome.toLowerCase().trim()))
     .map((b) => b.toString(16).padStart(2, "0")).join("");
-let modo = CFG.firebaseUrl ? "firebase" : CFG.kvdbBucket ? "kvdb" : "local";
+let modo = CFG.firebaseUrl ? "firebase" : CFG.storeUrl ? "nuvem" : "local";
 
-const KV_URL = CFG.kvdbBucket ? `https://kvdb.io/${CFG.kvdbBucket}/dados` : "";
+const LOJA_URL = CFG.storeUrl || "";
 const FB_URL = (CFG.firebaseUrl || "").replace(/\/+$/, "");
 const CHAVE_LOCAL = "coura-dados";
 const novoId = () => "k" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -80,7 +81,8 @@ const api = {
       if (!r.ok) throw new Error("leitura falhou");
       return (await r.json()) || DOC_VAZIO();
     }
-    const r = await fetch(KV_URL, { cache: "no-store" });
+    // parâmetro único para furar a cache/CDN do npoint (leituras sempre frescas)
+    const r = await fetch(`${LOJA_URL}?t=${Date.now()}`, { cache: "no-store" });
     if (r.status === 404) return DOC_VAZIO(); // ainda ninguém escreveu
     if (!r.ok) throw new Error("leitura falhou");
     return JSON.parse(await r.text());
@@ -100,8 +102,27 @@ const api = {
       return;
     }
     // POST em vez de PUT: pedido "simples" para o browser, sem preflight CORS
-    const r = await fetch(KV_URL, { method: "POST", body: JSON.stringify(doc) });
+    const r = await fetch(LOJA_URL, { method: "POST", body: JSON.stringify(doc) });
     if (!r.ok) throw new Error("gravação falhou");
+    aplicarDoc(doc); // refletir já na interface o documento que acabámos de gravar
+  },
+
+  // inscrição com verificação de duplicados feita sobre o documento acabado
+  // de ler (não sobre o estado do ecrã, que pode estar desatualizado)
+  async adicionarPessoa(valor) {
+    if (modo === "firebase") return this.adicionar("pessoas", valor);
+    await this._mutar((doc) => {
+      const chave = chaveNome(valor.nome);
+      const existe = Object.values(doc.pessoas).some(
+        (p) => p && typeof p.nome === "string" && chaveNome(p.nome) === chave
+      );
+      if (existe) {
+        const e = new Error("nome repetido");
+        e.duplicado = true;
+        throw e; // aborta antes de gravar
+      }
+      doc.pessoas[novoId()] = valor;
+    });
   },
 
   async adicionar(ramo, valor) {
@@ -202,22 +223,41 @@ function sanear(ramo, valido) {
   return limpo;
 }
 
+function aplicarDoc(doc) {
+  // uma pessoa por nome: se uma corrida criar duplicados, vale a inscrição mais antiga
+  const pessoas = sanear(doc.pessoas, (p) => typeof p.nome === "string" && p.nome.trim());
+  const porChave = {};
+  for (const [id, p] of Object.entries(pessoas)) {
+    const chave = chaveNome(p.nome);
+    if (!porChave[chave] || (p.t || 0) < (porChave[chave][1].t || 0)) porChave[chave] = [id, p];
+  }
+  estado.pessoas = Object.fromEntries(Object.values(porChave));
+
+  estado.material = sanear(doc.material, (c) => typeof c.nome === "string" && typeof c.item === "string");
+
+  // um voto por pessoa inscrita: a chave tem de bater certo com o nome do voto,
+  // e o nome tem de pertencer à tribo (ignora votos forjados diretamente na loja)
+  const inscritos = new Set(Object.keys(porChave));
+  const votos = sanear(doc.votos, (v) => typeof v.nome === "string" && DIAS_PARTIDA.some((o) => o.dia === v.dia));
+  estado.votos = {};
+  for (const [chave, v] of Object.entries(votos)) {
+    if (chave === chaveNome(v.nome) && inscritos.has(chave)) estado.votos[chave] = v;
+  }
+  if (mudarPrevisao._pendente) {
+    // há uma alteração local da previsão a caminho; não a deixes reverter
+    doc.previsao = estado.previsao;
+  }
+  estado.previsao = Math.max(1, Math.min(60, parseInt(doc.previsao, 10) || 20));
+  const assinatura = JSON.stringify(estado);
+  if (assinatura !== assinaturaEstado) {
+    assinaturaEstado = assinatura;
+    desenharTudo();
+  }
+}
+
 async function sincronizar() {
   try {
-    const doc = await api.ler();
-    estado.pessoas = sanear(doc.pessoas, (p) => typeof p.nome === "string" && p.nome.trim());
-    estado.material = sanear(doc.material, (c) => typeof c.nome === "string" && typeof c.item === "string");
-    estado.votos = sanear(doc.votos, (v) => typeof v.nome === "string" && DIAS_PARTIDA.some((o) => o.dia === v.dia));
-    if (mudarPrevisao._pendente) {
-      // há uma alteração local da previsão a caminho; não a deixes reverter
-      doc.previsao = estado.previsao;
-    }
-    estado.previsao = Math.max(1, Math.min(60, parseInt(doc.previsao, 10) || 20));
-    const assinatura = JSON.stringify(estado);
-    if (assinatura !== assinaturaEstado) {
-      assinaturaEstado = assinatura;
-      desenharTudo();
-    }
+    aplicarDoc(await api.ler());
   } catch (e) {
     console.error(e);
     if (modo !== "local") {
@@ -495,9 +535,10 @@ $("#form-pessoa").addEventListener("submit", async (e) => {
     .some((p) => p.nome.toLowerCase() === nome.toLowerCase());
   if (repetido) { avisar(`${nome} já está na lista.`); return; }
   try {
-    await api.adicionar("pessoas", { nome, t: Date.now() });
-  } catch {
-    falhaGravacao("Não consegui gravar. Tenta outra vez.");
+    await api.adicionarPessoa({ nome, t: Date.now() });
+  } catch (e) {
+    if (e && e.duplicado) avisar(`${nome} já está na lista.`);
+    else falhaGravacao("Não consegui gravar. Tenta outra vez.");
     return;
   }
   $("#input-nome").value = "";

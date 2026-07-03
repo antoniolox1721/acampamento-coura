@@ -1,7 +1,7 @@
 name: Backup dos dados
 
-# Faz backup dos dados partilhados (kvdb.io) para o repositório e,
-# de caminho, mantém o bucket ativo. Corre de 12 em 12 horas.
+# Faz backup dos dados partilhados (npoint.io) para o repositório.
+# Corre de 12 em 12 horas.
 on:
   schedule:
     - cron: "17 5,17 * * *"
@@ -16,11 +16,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Descarregar dados do kvdb.io
+      - name: Descarregar dados do npoint.io
         run: |
-          BUCKET=$(grep -oP 'kvdbBucket:\s*"\K[^"]+' config.js || true)
-          if [ -z "$BUCKET" ]; then echo "Sem bucket configurado."; exit 0; fi
-          curl -sf "https://kvdb.io/$BUCKET/dados" -o dados-backup.json.novo || exit 0
+          URL=$(grep -oP 'storeUrl:\s*"\K[^"]+' config.js || true)
+          if [ -z "$URL" ]; then echo "Sem loja configurada."; exit 0; fi
+          curl -sf "$URL" -o dados-backup.json.novo || exit 0
           # só substitui se for JSON válido
           python3 -m json.tool dados-backup.json.novo > /dev/null 2>&1 || exit 0
           mv dados-backup.json.novo dados-backup.json

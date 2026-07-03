@@ -1,12 +1,13 @@
 // ⚙️ ONDE VIVEM OS DADOS PARTILHADOS
 //
-// Por omissão, os dados vivem num "bucket" público do kvdb.io — grátis,
-// sem contas e sem servidor. O GitHub Actions faz backup do conteúdo
-// para este repositório de 12 em 12 horas (ver .github/workflows/backup.yml).
+// Por omissão, os dados vivem num "bin" público do npoint.io: grátis,
+// sem contas, sem verificações de email. O GitHub Actions faz backup do
+// conteúdo para este repositório de 12 em 12 horas (.github/workflows/backup.yml).
 //
-// Se preferires uma base mais robusta, cria uma Firebase Realtime Database
-// (instruções no README.md) e preenche firebaseUrl — passa a ter prioridade.
+// Se um dia for preciso algo mais robusto, cria uma Firebase Realtime
+// Database (instruções no README.md) e preenche firebaseUrl, que passa
+// a ter prioridade.
 window.CONFIG = {
-  kvdbBucket: "3adAvzpGcAY9audDMRdHqR",
+  storeUrl: "https://api.npoint.io/a2e2646cfda692c8bc65",
   firebaseUrl: ""
 };
