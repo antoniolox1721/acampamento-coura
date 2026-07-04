@@ -34,7 +34,8 @@ window.CATALOGO = [
   { id: "lixo",       nome: "Rolo de sacos do lixo",         por: 10, nota: "não deixamos rasto" },
   { id: "papel",      nome: "Papel de cozinha e higiénico",  por: 7,  nota: "nunca é demais" },
   { id: "toldo",      nome: "Toldo ou oleado",               por: 10, nota: "sombra de dia, abrigo à noite" },
-  { id: "mesa",       nome: "Mesa e cadeiras de campismo",   por: 5,  nota: "um conjunto por grupo de cinco" },
+  { id: "mesa",       nome: "Mesa de campismo",              por: 4,  nota: "uma por cada quatro pessoas" },
+  { id: "cadeira",    nome: "Cadeira de campismo",           por: 1,  nota: "uma por pessoa" },
   { id: "extensao",   nome: "Powerbank grande ou extensão",  por: 5,  nota: "para ninguém ficar sem bateria" },
 
   // 👇 PARA ADICIONAR UM ITEM NOVO: copia a linha abaixo, tira as barras

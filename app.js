@@ -85,6 +85,43 @@ const api = {
     });
   },
 
+  // liga um nome existente a este dispositivo (para quem se inscreveu
+  // antes de haver marcas, ou acabou de se inscrever)
+  async adotarPessoa(id) {
+    if (modo === "firebase") {
+      await fetch(`${FB_URL}/dados/pessoas/${id}/marca.json`, { method: "PUT", body: JSON.stringify(MARCA) });
+      return;
+    }
+    await this._mutar((doc) => {
+      const p = doc.pessoas[id];
+      if (!p) throw new Error("pessoa desapareceu");
+      if (p.marca && p.marca !== MARCA) {
+        const e = new Error("nome ligado a outro dispositivo");
+        e.ocupado = true;
+        throw e; // aborta antes de gravar
+      }
+      p.marca = MARCA;
+    });
+  },
+
+  // reclamação de material: no máximo uma por pessoa por item,
+  // verificada sobre o documento acabado de ler
+  async reclamar(valor) {
+    if (modo === "firebase") return this.adicionar("material", valor);
+    await this._mutar((doc) => {
+      const chave = chaveNome(valor.nome);
+      const repetido = Object.values(doc.material).some((c) =>
+        c && c.item === valor.item && typeof c.nome === "string" && chaveNome(c.nome) === chave
+      );
+      if (repetido) {
+        const e = new Error("item já reclamado por esta pessoa");
+        e.duplicado = true;
+        throw e; // aborta antes de gravar
+      }
+      doc.material[novoId()] = valor;
+    });
+  },
+
   async adicionar(ramo, valor) {
     if (modo === "firebase") {
       const r = await fetch(`${FB_URL}/dados/${ramo}.json`, { method: "POST", body: JSON.stringify(valor) });
@@ -146,9 +183,29 @@ const api = {
   },
 };
 
+// ───────────── Identidade do dispositivo ─────────────
+// Cada dispositivo tem uma marca aleatória. Ao inscrever ou usar um nome,
+// o nome fica ligado a essa marca: outros dispositivos deixam de poder
+// votar ou reclamar material em nome dessa pessoa.
+const MARCA = (() => {
+  let m = localStorage.getItem("coura-marca");
+  if (!m) {
+    m = crypto.randomUUID ? crypto.randomUUID()
+      : Date.now().toString(36) + Math.random().toString(36).slice(2);
+    localStorage.setItem("coura-marca", m);
+  }
+  return m;
+})();
+
 // ───────────── Estado ─────────────
 let estado = DOC_VAZIO();
 let assinaturaEstado = "";
+
+function pessoaPorNome(nome) {
+  const chave = chaveNome(nome);
+  return Object.entries(estado.pessoas).find(([, p]) => chaveNome(p.nome) === chave);
+}
+const possoUsar = (p) => !p.marca || p.marca === MARCA;
 
 const $ = (s) => document.querySelector(s);
 
@@ -193,7 +250,17 @@ function aplicarDoc(doc) {
   }
   estado.pessoas = Object.fromEntries(Object.values(porChave));
 
-  estado.material = sanear(doc.material, (c) => typeof c.nome === "string" && typeof c.item === "string");
+  // material: no máximo uma reclamação por pessoa por item do catálogo
+  // (vale a mais antiga); extras ficam como estão
+  const material = sanear(doc.material, (c) => typeof c.nome === "string" && typeof c.item === "string");
+  estado.material = {};
+  const reclamados = new Set();
+  for (const [id, c] of Object.entries(material).sort((a, b) => (a[1].t || 0) - (b[1].t || 0))) {
+    const chave = c.item === "_extra" ? id : `${c.item}|${chaveNome(c.nome)}`;
+    if (reclamados.has(chave)) continue;
+    reclamados.add(chave);
+    estado.material[id] = c;
+  }
 
   // um voto por pessoa inscrita: a chave tem de bater certo com o nome do voto,
   // e o nome tem de pertencer à tribo (ignora votos forjados diretamente na loja)
@@ -218,6 +285,7 @@ function aplicarDoc(doc) {
 async function sincronizar() {
   try {
     aplicarDoc(await api.ler());
+    ligarNomeLegado();
   } catch (e) {
     console.error(e);
     if (modo !== "local") {
@@ -275,10 +343,17 @@ function desenharPessoas() {
   sel.innerHTML = '<option value="">escolhe o teu nome…</option>';
   for (const [, p] of entradas) {
     const op = document.createElement("option");
-    op.value = op.textContent = p.nome;
+    op.value = p.nome;
+    if (possoUsar(p)) {
+      op.textContent = p.nome;
+    } else {
+      op.textContent = `${p.nome} 🔒`;
+      op.disabled = true;
+      op.title = "Ligado a outro dispositivo";
+    }
     sel.append(op);
   }
-  if ([...sel.options].some((o) => o.value === atual)) sel.value = atual;
+  if ([...sel.options].some((o) => o.value === atual && !o.disabled)) sel.value = atual;
 
   $("#valor-previsao").textContent = estado.previsao;
   $("#eco-previsao").textContent = estado.previsao;
@@ -286,6 +361,13 @@ function desenharPessoas() {
 
 function quemSou() {
   const eu = $("#select-eu").value;
+  if (eu) {
+    const par = pessoaPorNome(eu);
+    if (par && !possoUsar(par[1])) {
+      avisar("Esse nome está ligado a outro dispositivo.");
+      return "";
+    }
+  }
   if (!eu) {
     const caixa = $(".quem-sou");
     caixa.classList.remove("atencao");
@@ -442,10 +524,15 @@ function desenharMaterial() {
       acao.onclick = async () => {
         const eu = quemSou();
         if (!eu) return;
+        if (meus.some(([, c]) => chaveNome(c.nome) === chaveNome(eu))) {
+          avisar(`Já tens ${item.nome.toLowerCase()} anotado.`);
+          return;
+        }
         try {
-          await api.adicionar("material", { item: item.id, nome: eu, t: Date.now() });
-        } catch {
-          falhaGravacao("Não consegui gravar. Tenta outra vez.");
+          await api.reclamar({ item: item.id, nome: eu, t: Date.now() });
+        } catch (e) {
+          if (e && e.duplicado) avisar(`Já tens ${item.nome.toLowerCase()} anotado.`);
+          else falhaGravacao("Não consegui gravar. Tenta outra vez.");
           return;
         }
         avisar(`Anotado: ${item.nome.toLowerCase()}, por ${eu}.`);
@@ -495,7 +582,7 @@ $("#form-pessoa").addEventListener("submit", async (e) => {
     .some((p) => p.nome.toLowerCase() === nome.toLowerCase());
   if (repetido) { avisar(`${nome} já está na lista.`); return; }
   try {
-    await api.adicionarPessoa({ nome, t: Date.now() });
+    await api.adicionarPessoa({ nome, t: Date.now(), marca: MARCA });
   } catch (e) {
     if (e && e.duplicado) avisar(`${nome} já está na lista.`);
     else falhaGravacao("Não consegui gravar. Tenta outra vez.");
@@ -509,10 +596,52 @@ $("#form-pessoa").addEventListener("submit", async (e) => {
   desenharVotos();
 });
 
-$("#select-eu").addEventListener("change", (e) => {
-  if (e.target.value) localStorage.setItem("coura-eu", e.target.value);
+$("#select-eu").addEventListener("change", async (e) => {
+  const nome = e.target.value;
+  if (!nome) { desenharVotos(); return; }
+  const par = pessoaPorNome(nome);
+  if (par) {
+    const [id, p] = par;
+    if (!possoUsar(p)) {
+      avisar("Esse nome está ligado a outro dispositivo.");
+      e.target.value = "";
+      desenharVotos();
+      return;
+    }
+    if (!p.marca) {
+      // nome de antes das marcas: fica ligado a este dispositivo
+      try {
+        await api.adotarPessoa(id);
+      } catch (err) {
+        if (err && err.ocupado) {
+          avisar("Esse nome acabou de ficar ligado a outro dispositivo.");
+          e.target.value = "";
+          sincronizar();
+          return;
+        }
+      }
+    }
+  }
+  localStorage.setItem("coura-eu", nome);
   desenharVotos(); // destacar o "meu" voto
 });
+
+// quem já usava o site antes de haver marcas: liga o nome guardado
+// neste dispositivo na primeira visita depois da atualização
+let ligacaoLegadaFeita = false;
+async function ligarNomeLegado() {
+  if (ligacaoLegadaFeita) return;
+  const eu = localStorage.getItem("coura-eu");
+  if (!eu) { ligacaoLegadaFeita = true; return; }
+  const par = pessoaPorNome(eu);
+  if (!par) return; // a pessoa pode ainda não ter carregado; tenta no próximo ciclo
+  ligacaoLegadaFeita = true;
+  const [id, p] = par;
+  if (!p.marca) {
+    await api.adotarPessoa(id).catch(() => {});
+    sincronizar();
+  }
+}
 
 function mudarPrevisao(delta) {
   const n = Math.max(1, Math.min(60, (estado.previsao || 20) + delta));

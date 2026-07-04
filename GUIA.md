@@ -56,6 +56,15 @@ Estrutura:
 - Os votos têm chaves codificadas; muda votos pelo site, não à mão
 - Não partilhes o link do editor: quem o tiver pode apagar tudo
 
+## 🔓 Desbloquear um nome (mudou de telemóvel, limpou o browser, etc.)
+
+Cada nome fica ligado ao dispositivo que o usa (campo `marca` na pessoa),
+para ninguém votar em nome de outros. Se alguém perder o acesso:
+1. Abre o editor da base de dados (link acima)
+2. Encontra a pessoa em `pessoas` e apaga a linha `"marca": "..."`
+   (só essa linha, e a vírgula a mais se ficar)
+3. **Save**. No próximo acesso, o dispositivo da pessoa volta a ligar o nome.
+
 ## 🆘 Recuperar de um desastre
 
 Se alguém apagar ou estragar os dados:
