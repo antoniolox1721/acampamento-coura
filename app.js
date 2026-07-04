@@ -6,58 +6,18 @@
    Sem ligação → modo local.
    ═══════════════════════════════════════════════════════════════ */
 
-// ───────────── Catálogo de material de grupo ─────────────
-// "por" = nº de pessoas por unidade (ex.: 1 fogão por cada 4 pessoas)
-const CATALOGO = [
-  { id: "fogao",      nome: "Fogão de campismo",             por: 4,  nota: "um por cada quatro pessoas" },
-  { id: "gas",        nome: "Cartucho de gás",               por: 3,  nota: "vale mais sobrar do que faltar" },
-  { id: "panela",     nome: "Panela ou tacho",               por: 4,  nota: "um por cada quatro pessoas" },
-  { id: "frigideira", nome: "Frigideira",                    por: 5,  nota: "uma por cada cinco pessoas" },
-  { id: "geleira",    nome: "Geleira ou mala térmica",       por: 5,  nota: "com termoacumuladores" },
-  { id: "bidao",      nome: "Bidão de água, 5 L ou mais",    por: 4,  nota: "para cozinhar e lavar" },
-  { id: "candeeiro",  nome: "Candeeiro de campismo",         por: 5,  nota: "para iluminar o acampamento" },
-  { id: "coluna",     nome: "Coluna de som",                 por: 10, nota: "com bateria para a noite toda" },
-  { id: "socorros",   nome: "Kit de primeiros socorros",     por: 10, nota: "pensos, betadine, paracetamol" },
-  { id: "canivete",   nome: "Canivete ou abre-latas",        por: 5,  nota: "multiusos, de preferência" },
-  { id: "tabua",      nome: "Tábua e faca de cozinha",       por: 10, nota: "para a equipa de chefes" },
-  { id: "detergente", nome: "Detergente e esfregão",         por: 10, nota: "a loiça não se lava sozinha" },
-  { id: "lixo",       nome: "Rolo de sacos do lixo",         por: 10, nota: "não deixamos rasto" },
-  { id: "papel",      nome: "Papel de cozinha e higiénico",  por: 7,  nota: "nunca é demais" },
-  { id: "toldo",      nome: "Toldo ou oleado",               por: 10, nota: "sombra de dia, abrigo à noite" },
-  { id: "mesa",       nome: "Mesa e cadeiras de campismo",   por: 5,  nota: "um conjunto por grupo de cinco" },
-  { id: "extensao",   nome: "Powerbank grande ou extensão",  por: 5,  nota: "para ninguém ficar sem bateria" },
-];
-
-// ───────────── Essenciais individuais (checklist local) ─────────────
-const ESSENCIAIS = [
-  ["tenda",     "Tenda (combina a partilha)"],
-  ["saco",      "Saco-cama"],
-  ["colchao",   "Colchonete ou colchão insuflável"],
-  ["frontal",   "Lanterna frontal"],
-  ["protetor",  "Protetor solar"],
-  ["repelente", "Repelente de insetos"],
-  ["banho",     "Fato de banho"],
-  ["toalha",    "Toalha"],
-  ["chinelos",  "Chinelos"],
-  ["agasalho",  "Agasalho para a noite"],
-  ["chuva",     "Capa de chuva (é o Minho)"],
-  ["loica",     "Prato, copo e talheres reutilizáveis"],
-  ["cantil",    "Cantil ou garrafa de água"],
-  ["powerbank", "Powerbank pessoal"],
-  ["medicacao", "Medicação pessoal"],
-  ["dinheiro",  "Dinheiro em numerário"],
-];
+// ───────────── Conteúdo editável ─────────────
+// As listas do que há para levar e os dias em votação vivem em
+// catalogo.js, pensado para ser editado por qualquer pessoa.
+const CATALOGO = window.CATALOGO || [];
+const ESSENCIAIS = window.ESSENCIAIS || [];
 
 // ───────────── Camada de dados ─────────────
 const CFG = window.CONFIG || {};
 const DOC_VAZIO = () => ({ pessoas: {}, material: {}, votos: {}, previsao: 20 });
 
-// dias em votação para a partida
-const DIAS_PARTIDA = [
-  { dia: 7, semana: "Sexta" },
-  { dia: 8, semana: "Sábado" },
-  { dia: 9, semana: "Domingo" },
-];
+// dias em votação para a partida (editáveis em catalogo.js)
+const DIAS_PARTIDA = window.DIAS_PARTIDA || [];
 
 // chave segura para usar o nome como identificador: hex dos bytes UTF-8,
 // válida em qualquer backend (o Firebase não aceita ".#$[]/" nem percent-encoding)

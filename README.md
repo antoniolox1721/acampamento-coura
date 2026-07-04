@@ -6,6 +6,9 @@ por cada quatro, etc.) e consulta a checklist da mochila. Adeus, Excel.
 
 **Site:** https://antoniolox1721.github.io/acampamento-coura/
 
+> ✏️ **Queres editar o site ou os dados? Começa pelo [GUIA.md](GUIA.md)**,
+> que tem todos os links e instruções passo a passo.
+
 ## Como funcionam os dados partilhados
 
 O GitHub Pages só serve ficheiros estáticos: não aceita escritas de visitantes
