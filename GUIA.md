@@ -13,6 +13,15 @@ Tudo o que precisas para gerir o site, num sítio só. Guarda este link:
 | 💾 Backup automático (de 12 em 12 horas) | https://github.com/antoniolox1721/acampamento-coura/blob/main/dados-backup.json |
 | 📁 O código todo | https://github.com/antoniolox1721/acampamento-coura |
 
+## 🔒 Nota sobre o código do site
+
+O JavaScript publicado é **ofuscado** (baralhado) para dificultar que alguém
+o leia ou altere pelo "inspecionar elemento". Isto acontece sozinho no deploy:
+tu editas sempre os ficheiros **legíveis** aqui no GitHub (`catalogo.js`,
+`index.html`, etc.) e o site trata de baralhar a versão publicada. No site
+verás um ficheiro `coura.min.js` ilegível — é normal. Não edites esse; edita
+os originais no repositório como sempre.
+
 ## ✏️ Mudar o que há para levar (o mais comum)
 
 Está tudo num único ficheiro, `catalogo.js`, feito para ser fácil:
