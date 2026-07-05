@@ -62,7 +62,7 @@ window.ESSENCIAIS = [
   ["powerbank", "Powerbank pessoal"],
   ["medicacao", "Medicação pessoal"],
   ["dinheiro",  "Dinheiro em numerário"],
-  ["comida",  "Comida para não ter chular constantemente comida aos outros"],
+  ["comida",  "Comida para não ter de chular constantemente comida aos outros"],
   ["bilhete",  "bilhete de bus (opcional)"],
 
   // 👇 PARA ADICIONAR: copia a linha abaixo e tira as barras do início.
