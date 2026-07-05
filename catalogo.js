@@ -56,12 +56,12 @@ window.ESSENCIAIS = [
   ["toalha",    "Toalha"],
   ["chinelos",  "Chinelos"],
   ["agasalho",  "Agasalho para a noite"],
-  ["chuva",     "Capa de chuva (é o Minho)"],
   ["loica",     "Prato, copo e talheres reutilizáveis"],
   ["cantil",    "Cantil ou garrafa de água"],
   ["powerbank", "Powerbank pessoal"],
   ["medicacao", "Medicação pessoal"],
   ["dinheiro",  "Dinheiro em numerário"],
+  ["comida",  "Comida para não ter chular comida aos outros"],
 
   // 👇 PARA ADICIONAR: copia a linha abaixo e tira as barras do início.
   // ["novo_id",   "Coisa nova para levar"],
