@@ -1,0 +1,67 @@
+name: Publicar site
+
+# Constrói e publica o site no GitHub Pages. O JavaScript publicado é
+# ofuscado (juntado num único ficheiro e baralhado); o código legível vive
+# apenas neste repositório, por isso editar os ficheiros aqui continua a ser
+# a única forma de mudar o site.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validar sintaxe do JavaScript
+        run: |
+          for f in config.js catalogo.js app.js; do node --check "$f"; done
+
+      - name: Construir site ofuscado
+        run: |
+          mkdir dist
+          cat config.js catalogo.js app.js > coura.junto.js
+          npx --yes javascript-obfuscator coura.junto.js \
+            --output dist/coura.min.js \
+            --compact true \
+            --string-array true \
+            --string-array-threshold 0.75 \
+            --string-array-encoding base64 \
+            --rename-globals false \
+            --self-defending false \
+            --debug-protection false \
+            --control-flow-flattening false
+          cp style.css dist/
+          sed -e '/src="config.js"/d' -e '/src="catalogo.js"/d' \
+              -e 's|<script src="app.js"></script>|<script src="coura.min.js"></script>|' \
+              index.html > dist/index.html
+          # o site ofuscado não pode conter os nomes dos ficheiros originais
+          if grep -q 'app.js\|catalogo.js\|config.js' dist/index.html; then
+            echo "index.html ainda refere ficheiros originais"; exit 1;
+          fi
+          ls -la dist
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
