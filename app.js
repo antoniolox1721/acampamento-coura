@@ -299,7 +299,6 @@ function aplicarDoc(doc) {
 async function sincronizar() {
   try {
     aplicarDoc(await api.ler());
-    ligarNomeLegado();
   } catch (e) {
     console.error(e);
     if (modo !== "local") {
@@ -357,17 +356,22 @@ function desenharPessoas() {
   sel.innerHTML = '<option value="">escolhe o teu nome…</option>';
   for (const [, p] of entradas) {
     const op = document.createElement("option");
-    op.value = p.nome;
+    op.value = corta(p.nome);
     if (possoUsar(p)) {
-      op.textContent = p.nome;
+      op.textContent = corta(p.nome);
     } else {
-      op.textContent = `${p.nome} 🔒`;
+      op.textContent = `${corta(p.nome)} 🔒`;
       op.disabled = true;
       op.title = "Ligado a outro dispositivo";
     }
     sel.append(op);
   }
-  if ([...sel.options].some((o) => o.value === atual && !o.disabled)) sel.value = atual;
+  // só repõe a seleção se o nome pertence mesmo a este dispositivo;
+  // se o ponteiro guardado for de outra pessoa, larga-o (auto-cura)
+  const chaveAtual = atual ? chaveNome(atual) : "";
+  const meu = chaveAtual && entradas.find(([, p]) => chaveNome(p.nome) === chaveAtual && p.marca === MARCA);
+  if (meu) sel.value = corta(meu[1].nome);
+  else if (chaveAtual && entradas.some(([, p]) => chaveNome(p.nome) === chaveAtual)) localStorage.removeItem("coura-eu");
 
   $("#valor-previsao").textContent = estado.previsao;
   $("#eco-previsao").textContent = estado.previsao;
@@ -623,7 +627,18 @@ $("#select-eu").addEventListener("change", async (e) => {
       return;
     }
     if (!p.marca) {
-      // nome de antes das marcas: fica ligado a este dispositivo
+      // nome ainda sem dono: só o liga a este dispositivo com confirmação
+      // explícita, para nunca "roubar" o nome de outra pessoa sem querer
+      const confirmar = confirm(
+        `És mesmo tu, ${nome}? Isto liga este nome a este dispositivo, ` +
+        `para mais ninguém votar ou levar material por ti. ` +
+        `Não escolhas o nome de outra pessoa.`
+      );
+      if (!confirmar) {
+        e.target.value = "";
+        desenharVotos();
+        return;
+      }
       try {
         await api.adotarPessoa(id);
       } catch (err) {
@@ -639,23 +654,6 @@ $("#select-eu").addEventListener("change", async (e) => {
   localStorage.setItem("coura-eu", nome);
   desenharVotos(); // destacar o "meu" voto
 });
-
-// quem já usava o site antes de haver marcas: liga o nome guardado
-// neste dispositivo na primeira visita depois da atualização
-let ligacaoLegadaFeita = false;
-async function ligarNomeLegado() {
-  if (ligacaoLegadaFeita) return;
-  const eu = localStorage.getItem("coura-eu");
-  if (!eu) { ligacaoLegadaFeita = true; return; }
-  const par = pessoaPorNome(eu);
-  if (!par) return; // a pessoa pode ainda não ter carregado; tenta no próximo ciclo
-  ligacaoLegadaFeita = true;
-  const [id, p] = par;
-  if (!p.marca) {
-    await api.adotarPessoa(id).catch(() => {});
-    sincronizar();
-  }
-}
 
 function mudarPrevisao(delta) {
   const n = Math.max(1, Math.min(60, (estado.previsao || 20) + delta));
