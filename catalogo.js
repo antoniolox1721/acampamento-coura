@@ -19,6 +19,7 @@
 
 // ───────────── MATERIAL DE GRUPO (partilhado, reclamável no site) ─────────────
 window.CATALOGO = [
+  { id: "bilhete",    nome: "Bilhete do Festival",           por: 1,  nota: "Quem já tem?" },
   { id: "fogao",      nome: "Fogão de campismo",             por: 4,  nota: "um por cada quatro pessoas" },
   { id: "gas",        nome: "Cartucho de gás",               por: 3,  nota: "vale mais sobrar do que faltar" },
   { id: "panela",     nome: "Panela ou tacho",               por: 4,  nota: "um por cada quatro pessoas" },
@@ -62,6 +63,7 @@ window.ESSENCIAIS = [
   ["medicacao", "Medicação pessoal"],
   ["dinheiro",  "Dinheiro em numerário"],
   ["comida",  "Comida para não ter chular comida aos outros"],
+  ["bilhete",  "bilhete de bus (opcional)"],
 
   // 👇 PARA ADICIONAR: copia a linha abaixo e tira as barras do início.
   // ["novo_id",   "Coisa nova para levar"],
