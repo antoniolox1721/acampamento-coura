@@ -65,6 +65,16 @@ para ninguém votar em nome de outros. Se alguém perder o acesso:
    (só essa linha, e a vírgula a mais se ficar)
 3. **Save**. No próximo acesso, o dispositivo da pessoa volta a ligar o nome.
 
+## 🛡️ Escudo contra vandalismo
+
+A base de dados tem um **schema trancado** (definitivo, ninguém o pode
+remover): o npoint rejeita automaticamente escritas vazias, nulas, ou que
+apaguem toda a gente, o mesmo tipo de ataque que já aconteceu uma vez.
+Nota: por causa disso, a lista de pessoas nunca pode ficar completamente
+vazia; para "começar do zero" deixa sempre pelo menos uma pessoa.
+Vandalismo mais sofisticado continua possível (a base é pública por
+natureza); para isso existe o backup abaixo.
+
 ## 🆘 Recuperar de um desastre
 
 Se alguém apagar ou estragar os dados:
