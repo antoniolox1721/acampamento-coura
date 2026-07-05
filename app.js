@@ -721,6 +721,22 @@ for (let i = 0; i < 110; i++) {
 }
 grupoEstrelas.style.opacity = .35;
 
+// pirilampos a vaguear junto às encostas
+const grupoPirilampos = $("#pirilampos");
+for (let i = 0; i < 14; i++) {
+  const f = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  f.setAttribute("cx", (60 + Math.random() * 1320).toFixed(1));
+  f.setAttribute("cy", (590 + Math.random() * 250).toFixed(1));
+  f.setAttribute("r", (1.3 + Math.random() * 1.3).toFixed(2));
+  f.setAttribute("class", "pirilampo");
+  f.style.setProperty("--dur", (2.4 + Math.random() * 2.8).toFixed(2) + "s");
+  f.style.setProperty("--dx", ((Math.random() - 0.5) * 30).toFixed(1) + "px");
+  f.style.setProperty("--dy", ((Math.random() - 0.5) * 22).toFixed(1) + "px");
+  f.style.animationDelay = (Math.random() * -6).toFixed(2) + "s";
+  grupoPirilampos.append(f);
+}
+grupoPirilampos.style.opacity = .55;
+
 // interpolação de cores
 const hex = (c) => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
 function mistura(a, b, p) {
@@ -765,6 +781,7 @@ function pintarCena() {
   raiz.setProperty("--ceu-2", mistura("#0d1310", "#070b09", p));
 
   grupoEstrelas.style.opacity = .35 + .65 * clamp01(p * 1.5);
+  grupoPirilampos.style.opacity = .35 + .65 * clamp01(p * 1.5); // acendem com a noite
   lua.style.transform = `translateY(${p * -46}px)`;
   for (const [g, v] of serras) g.style.transform = `translateY(${p * v}px)`;
 

@@ -50,6 +50,25 @@ body {
 #brasa { animation: respirar 4.5s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
 @keyframes respirar { 0%, 100% { opacity: .75; } 50% { opacity: 1; } }
 
+/* pirilampos */
+.pirilampo {
+  fill: #ffd98a;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation:
+    pulsar-pirilampo var(--dur, 3s) ease-in-out infinite alternate,
+    vaguear-pirilampo calc(var(--dur, 3s) * 3.3) ease-in-out infinite alternate;
+}
+@keyframes pulsar-pirilampo {
+  from { opacity: .03; }
+  55%  { opacity: .06; }
+  to   { opacity: .95; }
+}
+@keyframes vaguear-pirilampo {
+  from { transform: translate(0, 0); }
+  to   { transform: translate(var(--dx, 12px), var(--dy, -9px)); }
+}
+
 /* grão de película */
 #grao {
   position: fixed;
@@ -652,7 +671,8 @@ footer .coordenadas { margin: 0 0 .6rem; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .estrela, .nevoa, #brasa, .indicador span { animation: none; }
+  .estrela, .nevoa, #brasa, .pirilampo, .indicador span { animation: none; }
+  .pirilampo { opacity: .5; }
   .entra { animation: none; opacity: 1; transform: none; }
   .revela { opacity: 1; transform: none; transition: none; }
   #trilho { display: none; }
