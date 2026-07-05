@@ -45,7 +45,9 @@ const api = {
     const r = await fetch(`${LOJA_URL}?t=${Date.now()}`, { cache: "no-store" });
     if (r.status === 404) return DOC_VAZIO(); // ainda ninguém escreveu
     if (!r.ok) throw new Error("leitura falhou");
-    return JSON.parse(await r.text());
+    const bruto = JSON.parse(await r.text());
+    // loja pública: se alguém a apagar (null) ou lá puser lixo, trata como vazia
+    return bruto && typeof bruto === "object" && !Array.isArray(bruto) ? bruto : DOC_VAZIO();
   },
 
   // lê o estado mais recente, aplica a alteração e grava o documento inteiro
@@ -232,15 +234,27 @@ function falhaGravacao(msg) {
 
 // o bucket é público e escrevível por qualquer pessoa: ao ler, ignora
 // entradas malformadas para que dados estranhos nunca partam a interface
+const CHAVES_PERIGOSAS = new Set(["__proto__", "constructor", "prototype"]);
+const MAX_ENTRADAS = 600; // teto defensivo: um flood não congela o browser de ninguém
+
 function sanear(ramo, valido) {
   const limpo = {};
-  for (const [id, v] of Object.entries(ramo || {})) {
-    if (v && typeof v === "object" && valido(v)) limpo[id] = v;
+  if (!ramo || typeof ramo !== "object") return limpo;
+  let n = 0;
+  for (const [id, v] of Object.entries(ramo)) {
+    if (CHAVES_PERIGOSAS.has(id)) continue;         // evita poluição de protótipo
+    if (!v || typeof v !== "object" || !valido(v)) continue;
+    if (++n > MAX_ENTRADAS) break;                  // ignora o excesso de um flood
+    limpo[id] = v;
   }
   return limpo;
 }
 
+// corta strings compridas antes de as mostrar (nem tudo tem limite no schema)
+const corta = (s, n = 40) => String(s).slice(0, n);
+
 function aplicarDoc(doc) {
+  if (!doc || typeof doc !== "object") doc = DOC_VAZIO();
   // uma pessoa por nome: se uma corrida criar duplicados, vale a inscrição mais antiga
   const pessoas = sanear(doc.pessoas, (p) => typeof p.nome === "string" && p.nome.trim());
   const porChave = {};
@@ -325,10 +339,10 @@ function desenharPessoas() {
   for (const [id, p] of entradas) {
     const et = document.createElement("span");
     et.className = "etiqueta";
-    et.append(p.nome);
+    et.append(corta(p.nome));
     const x = document.createElement("button");
     x.textContent = "✕";
-    x.title = `Remover ${p.nome}`;
+    x.title = `Remover ${corta(p.nome)}`;
     x.onclick = async () => {
       if (!confirm(`Remover ${p.nome} da lista? O voto e o material dessa pessoa também saem.`)) return;
       await api.removerPessoa(id, p.nome).catch(() => falhaGravacao("Não consegui gravar. Tenta outra vez."));
@@ -431,7 +445,7 @@ function desenharVotos() {
     for (const v of meus) {
       const mini = document.createElement("span");
       mini.className = "mini";
-      mini.textContent = v.nome;
+      mini.textContent = corta(v.nome);
       quem.append(mini);
     }
 
@@ -499,7 +513,7 @@ function desenharMaterial() {
     for (const [id, c] of meus) {
       const mini = document.createElement("span");
       mini.className = "mini";
-      mini.append(c.nome);
+      mini.append(corta(c.nome));
       const x = document.createElement("button");
       x.textContent = "✕";
       x.title = "Já não levo";
@@ -559,11 +573,11 @@ function desenharExtras() {
   for (const [id, c] of extras) {
     const et = document.createElement("span");
     et.className = "etiqueta";
-    et.append(`${c.extra} · ${c.nome}`);
+    et.append(`${corta(c.extra)} · ${corta(c.nome)}`);
     const x = document.createElement("button");
     x.textContent = "✕";
-    x.title = `Remover ${c.extra}`;
-    x.setAttribute("aria-label", `Remover ${c.extra}`);
+    x.title = `Remover ${corta(c.extra)}`;
+    x.setAttribute("aria-label", `Remover ${corta(c.extra)}`);
     x.onclick = async () => {
       await api.remover("material", id).catch(() => falhaGravacao("Não consegui gravar. Tenta outra vez."));
       sincronizar();
