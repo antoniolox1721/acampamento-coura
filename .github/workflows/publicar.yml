@@ -38,7 +38,7 @@ jobs:
             --string-array true \
             --string-array-threshold 0.75 \
             --string-array-encoding base64 \
-            --rename-globals false \
+            --rename-globals true \
             --self-defending false \
             --debug-protection false \
             --control-flow-flattening false
