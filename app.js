@@ -29,7 +29,14 @@ let modo = CFG.firebaseUrl ? "firebase" : CFG.storeUrl ? "nuvem" : "local";
 const LOJA_URL = CFG.storeUrl || "";
 const FB_URL = (CFG.firebaseUrl || "").replace(/\/+$/, "");
 const CHAVE_LOCAL = "coura-dados";
+// última leitura boa da nuvem, para pintar o site logo ao abrir mesmo que a
+// loja esteja lenta (o npoint chegou a demorar 30-60s a responder)
+const CHAVE_CACHE = "coura-cache";
 const novoId = () => "k" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+function guardarCache(doc) {
+  try { localStorage.setItem(CHAVE_CACHE, JSON.stringify(doc)); } catch {}
+}
 
 const api = {
   async ler() {
@@ -39,7 +46,9 @@ const api = {
     if (modo === "firebase") {
       const r = await fetch(`${FB_URL}/dados.json`);
       if (!r.ok) throw new Error("leitura falhou");
-      return (await r.json()) || DOC_VAZIO();
+      const doc = (await r.json()) || DOC_VAZIO();
+      guardarCache(doc);
+      return doc;
     }
     // parâmetro único para furar a cache/CDN do npoint (leituras sempre frescas)
     const r = await fetch(`${LOJA_URL}?t=${Date.now()}`, { cache: "no-store" });
@@ -47,7 +56,11 @@ const api = {
     if (!r.ok) throw new Error("leitura falhou");
     const bruto = JSON.parse(await r.text());
     // loja pública: se alguém a apagar (null) ou lá puser lixo, trata como vazia
-    return bruto && typeof bruto === "object" && !Array.isArray(bruto) ? bruto : DOC_VAZIO();
+    if (bruto && typeof bruto === "object" && !Array.isArray(bruto)) {
+      guardarCache(bruto);
+      return bruto;
+    }
+    return DOC_VAZIO();
   },
 
   // lê o estado mais recente, aplica a alteração e grava o documento inteiro
@@ -66,6 +79,7 @@ const api = {
     // POST em vez de PUT: pedido "simples" para o browser, sem preflight CORS
     const r = await fetch(LOJA_URL, { method: "POST", body: JSON.stringify(doc) });
     if (!r.ok) throw new Error("gravação falhou");
+    guardarCache(doc);
     aplicarDoc(doc); // refletir já na interface o documento que acabámos de gravar
   },
 
@@ -221,6 +235,12 @@ function avisar(msg) {
 
 function ativarModoLocal() {
   modo = "local";
+  // sem dados locais, parte da última leitura boa da nuvem: a lista de
+  // pessoas não desaparece só porque a loja está em baixo
+  if (!localStorage.getItem(CHAVE_LOCAL)) {
+    const cache = localStorage.getItem(CHAVE_CACHE);
+    if (cache) localStorage.setItem(CHAVE_LOCAL, cache);
+  }
   $("#aviso-local").hidden = false;
 }
 
@@ -821,6 +841,16 @@ $("#ano").textContent = new Date().getFullYear();
 if (modo === "local") $("#aviso-local").hidden = false;
 
 construirTrilho();
+// pinta já a última leitura boa enquanto a loja não responde (pode demorar);
+// a leitura fresca substitui isto assim que chegar
+if (modo !== "local") {
+  try {
+    const cache = JSON.parse(localStorage.getItem(CHAVE_CACHE) || "null");
+    if (cache) aplicarDoc(cache);
+  } catch {}
+}
 sincronizar();
-setInterval(() => { if (!document.hidden) sincronizar(); }, 8000);
+// sondagem espaçada: cada leitura fura a CDN e bate no servidor do npoint,
+// e sondar de 8 em 8s em vários separadores levou-o a estrangular o bin
+setInterval(() => { if (!document.hidden) sincronizar(); }, 60000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) sincronizar(); });
