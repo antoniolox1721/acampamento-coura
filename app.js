@@ -925,13 +925,27 @@ if (modo !== "local") {
     if (cache) { aplicarDoc(cache); pintouCache = true; }
   } catch {}
 }
-// primeira visita (sem cache local): leitura instantânea pela CDN, que pode
-// ter até 1h de atraso mas responde num piscar; a leitura fresca ganha-lhe
-// sempre, e nunca pode tapar a cache local, que costuma ser mais recente
+// primeira visita (sem cache local): pinta já com o que houver de mais fresco
+// à mão enquanto a leitura fresca não chega — a CDN do npoint (até 1h, mas o
+// Vary: Origin faz o browser falhar a cache com frequência) e o backup do
+// repositório (até 12h, mas responde sempre num piscar). A leitura fresca
+// ganha sempre, e nada disto pode tapar a cache local, que é mais recente.
 if (modo === "nuvem" && !pintouCache) {
+  let cdnPintou = false;
   api.lerCdn().then((doc) => {
-    if (doc && modo === "nuvem" && !leituraFrescaChegou && !tUltimaEscrita) aplicarDoc(doc);
+    if (doc && modo === "nuvem" && !leituraFrescaChegou && !tUltimaEscrita) {
+      cdnPintou = true;
+      aplicarDoc(doc);
+    }
   }).catch(() => {});
+  fetch("https://raw.githubusercontent.com/antoniolox1721/acampamento-coura/main/dados-backup.json")
+    .then((r) => (r.ok ? r.json() : null))
+    .then((doc) => {
+      if (doc && typeof doc === "object" && !Array.isArray(doc) &&
+          modo === "nuvem" && !leituraFrescaChegou && !tUltimaEscrita && !cdnPintou) {
+        aplicarDoc(doc);
+      }
+    }).catch(() => {});
 }
 sincronizar();
 // sondagem espaçada: cada leitura fura a CDN e bate no servidor do npoint,
