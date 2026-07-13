@@ -50,8 +50,17 @@ const api = {
       guardarCache(doc);
       return doc;
     }
-    // parâmetro único para furar a cache/CDN do npoint (leituras sempre frescas)
-    const r = await fetch(`${LOJA_URL}?t=${Date.now()}`, { cache: "no-store" });
+    // parâmetro único para furar a cache/CDN do npoint (leituras sempre frescas);
+    // o servidor de origem pode demorar dezenas de segundos, por isso há um
+    // teto: melhor desistir e tentar no próximo ciclo do que pendurar tudo
+    const parar = new AbortController();
+    const tempo = setTimeout(() => parar.abort(), 90000);
+    let r;
+    try {
+      r = await fetch(`${LOJA_URL}?t=${Date.now()}`, { cache: "no-store", signal: parar.signal });
+    } finally {
+      clearTimeout(tempo);
+    }
     if (r.status === 404) return DOC_VAZIO(); // ainda ninguém escreveu
     if (!r.ok) throw new Error("leitura falhou");
     const bruto = JSON.parse(await r.text());
@@ -61,6 +70,16 @@ const api = {
       return bruto;
     }
     return DOC_VAZIO();
+  },
+
+  // leitura rápida pela cache da CDN (sem cache-buster): responde num piscar
+  // mas pode ter até 1h; serve só para pintar o arranque enquanto a leitura
+  // fresca não chega — nunca para decidir escritas
+  async lerCdn() {
+    const r = await fetch(LOJA_URL);
+    if (!r.ok) return null;
+    const bruto = await r.json().catch(() => null);
+    return bruto && typeof bruto === "object" && !Array.isArray(bruto) ? bruto : null;
   },
 
   // lê o estado mais recente, aplica a alteração e grava o documento inteiro
@@ -79,6 +98,7 @@ const api = {
     // POST em vez de PUT: pedido "simples" para o browser, sem preflight CORS
     const r = await fetch(LOJA_URL, { method: "POST", body: JSON.stringify(doc) });
     if (!r.ok) throw new Error("gravação falhou");
+    tUltimaEscrita = Date.now(); // leituras que já estavam a caminho nasceram velhas
     guardarCache(doc);
     aplicarDoc(doc); // refletir já na interface o documento que acabámos de gravar
   },
@@ -216,6 +236,8 @@ const MARCA = (() => {
 // ───────────── Estado ─────────────
 let estado = DOC_VAZIO();
 let assinaturaEstado = "";
+let tUltimaEscrita = 0;       // quando gravámos pela última vez neste separador
+let leituraFrescaChegou = false; // já recebemos alguma leitura fresca da loja?
 
 function pessoaPorNome(nome) {
   const chave = chaveNome(nome);
@@ -244,12 +266,30 @@ function ativarModoLocal() {
   $("#aviso-local").hidden = false;
 }
 
+// leituras a falhar em série: avisa que o que está no ecrã pode estar velho,
+// sem trocar de modo (a faixa some sozinha quando uma leitura voltar a passar)
+function avisoDesatualizado(ligar) {
+  const f = avisoDesatualizado;
+  f._seguidas = ligar ? (f._seguidas || 0) + 1 : 0;
+  const faixa = $("#aviso-local");
+  if (f._seguidas >= 3 && !f._visivel) {
+    faixa.textContent = "A base partilhada não responde: o que vês pode estar desatualizado.";
+    faixa.hidden = false;
+    f._visivel = true;
+  } else if (!ligar && f._visivel) {
+    // só esconde a faixa que este aviso mostrou; nunca a de gravações falhadas
+    faixa.hidden = true;
+    f._visivel = false;
+  }
+}
+
 // gravação falhada: avisa e mostra a faixa, para ninguém perder dados sem saber
 function falhaGravacao(msg) {
   avisar(msg);
   const faixa = $("#aviso-local");
   faixa.textContent = "Há problemas a gravar na base partilhada: as tuas alterações podem não estar a ficar guardadas.";
   faixa.hidden = false;
+  avisoDesatualizado._visivel = false; // a faixa passa a ser deste aviso, mais grave
 }
 
 // o bucket é público e escrevível por qualquer pessoa: ao ler, ignora
@@ -316,14 +356,49 @@ function aplicarDoc(doc) {
   }
 }
 
+// nunca mais do que uma leitura da loja em curso: com o servidor lento,
+// cada gatilho (relógio, mudar de separador, escrita) empilhava pedidos
+// e esse martelar é o que leva o npoint a estrangular o bin
+let sincronizacaoEmCurso = null;
+let sincronizarOutraVez = false;
+
 async function sincronizar() {
+  if (sincronizacaoEmCurso) {
+    sincronizarOutraVez = true;
+    return sincronizacaoEmCurso;
+  }
+  sincronizacaoEmCurso = (async () => {
+    const inicio = Date.now();
+    try {
+      const doc = await api.ler();
+      if (modo !== "local") leituraFrescaChegou = true;
+      avisoDesatualizado(false);
+      // uma escrita aconteceu depois de esta leitura partir: o ecrã já está
+      // mais atual do que ela, aplicá-la faria a alteração "desaparecer"
+      if (tUltimaEscrita > inicio) {
+        sincronizarOutraVez = true;
+        return;
+      }
+      aplicarDoc(doc);
+    } catch (e) {
+      console.error(e);
+      // só cai para modo local quando nunca houve dados da nuvem para mostrar;
+      // uma falha passageira não deve prender o site no modo local até refrescar
+      if (modo !== "local" && !leituraFrescaChegou && !localStorage.getItem(CHAVE_CACHE)) {
+        ativarModoLocal();
+        avisar("Sem ligação à base partilhada: modo local ativado.");
+        sincronizarOutraVez = true;
+      } else if (modo === "nuvem") {
+        avisoDesatualizado(true);
+      }
+    }
+  })();
   try {
-    aplicarDoc(await api.ler());
-  } catch (e) {
-    console.error(e);
-    if (modo !== "local") {
-      ativarModoLocal();
-      avisar("Sem ligação à base partilhada: modo local ativado.");
+    await sincronizacaoEmCurso;
+  } finally {
+    sincronizacaoEmCurso = null;
+    if (sincronizarOutraVez) {
+      sincronizarOutraVez = false;
       sincronizar();
     }
   }
@@ -843,11 +918,20 @@ if (modo === "local") $("#aviso-local").hidden = false;
 construirTrilho();
 // pinta já a última leitura boa enquanto a loja não responde (pode demorar);
 // a leitura fresca substitui isto assim que chegar
+let pintouCache = false;
 if (modo !== "local") {
   try {
     const cache = JSON.parse(localStorage.getItem(CHAVE_CACHE) || "null");
-    if (cache) aplicarDoc(cache);
+    if (cache) { aplicarDoc(cache); pintouCache = true; }
   } catch {}
+}
+// primeira visita (sem cache local): leitura instantânea pela CDN, que pode
+// ter até 1h de atraso mas responde num piscar; a leitura fresca ganha-lhe
+// sempre, e nunca pode tapar a cache local, que costuma ser mais recente
+if (modo === "nuvem" && !pintouCache) {
+  api.lerCdn().then((doc) => {
+    if (doc && modo === "nuvem" && !leituraFrescaChegou && !tUltimaEscrita) aplicarDoc(doc);
+  }).catch(() => {});
 }
 sincronizar();
 // sondagem espaçada: cada leitura fura a CDN e bate no servidor do npoint,
